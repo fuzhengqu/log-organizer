@@ -65,9 +65,10 @@ git push origin v0.02
 
 - [ ] `LICENSE`、`SECURITY.md`、`PRIVACY.md`、`THIRD-PARTY-NOTICES.md` 存在且日期/版本正确。
 - [ ] `CHANGELOG.md` 有本次条目，版本号与 tag 一致。
-- [ ] 单元测试全绿（当前 62 个）。
+- [ ] 单元测试全绿（当前 73 个）。
 - [ ] `dotnet list LogOrganizer.sln package --include-transitive --vulnerable` 无输出告警。
 - [ ] 仓库里没有本机路径、个人邮箱、企业信息（见 `docs/security-audit.md`）。
 - [ ] 两个 zip 解压后都能看到 `LogOrganizer.exe`、`VC_redist.*.exe`、`使用说明.txt`。
 - [ ] `SHA256SUMS.txt` 与附件实际哈希一致（`certutil -hashfile <文件> SHA256`）。
 - [ ] Release 说明写清：x64 已实机验证 / ARM64 待实机验证、需要 VC++ 运行库、未签名会触发 SmartScreen。
+- [ ] 手工确认：托盘右键六项都能执行（含“打开目标目录”在未设置时置灰）、两个窗口的最大化按钮可用且不能缩到最小尺寸以下、启用快捷键后按组合键能唤醒并聚焦单号框、组合被占用时设置页给出提示。

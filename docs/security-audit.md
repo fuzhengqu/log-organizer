@@ -62,7 +62,8 @@ dotnet list LogOrganizer.sln package --include-transitive --vulnerable
 | 失败保留源 | 跨卷复制到 `*.tfo-partial-<guid>` 暂存名，校验通过才提交；任何异常都清理暂存并保留源项目。 |
 | 校验强度 | 目录比对文件数量 + 每个文件大小；文件比对大小。**不做逐字节哈希**（大文件代价高），已在 README 已知限制中写明。 |
 | 注册表 | 只有 `HKCU\...\Run\LogOrganizer` 一个写入点，跟随用户勾选；启动时顺手清理旧值名。不写 HKLM，不申请提权。 |
-| 键盘钩子 | `WakeKeyHook` 只在用户开启“空格/回车唤醒”时安装，忽略输入框内的按键，退出时 `UnhookWindowsHookEx`。 |
+| 键盘钩子 | 不使用全局键盘钩子：唤醒走 `RegisterHotKey`（message-only 窗口 + `WM_HOTKEY`），只在用户启用后注册组合，退出/改键时 `UnregisterHotKey`；因此不会截获其它程序输入的空格 / 回车。组合冲突由系统返回 1409，设置页提示。
+| 托盘菜单 | `TrayMenu` 自建隐藏 `WS_POPUP` 宿主窗口并以 `TrackPopupMenuEx` 弹出 Win32 菜单，命令按返回值分发，不注入其它进程、不安装钩子；菜单项状态（是否置灰）每次弹出时重建。
 | 崩溃日志 | 只写 `%LOCALAPPDATA%\LogOrganizer\crash.log`，超过 1 MB 重建；内容是本机异常文本，不外发。 |
 | 网络 | 源码中不存在 `HttpClient`、`Socket`、`WebRequest`、遥测 SDK 的调用。 |
 | 单实例 | 命名互斥体 `Global\LogOrganizer.SingleInstance.v1`，防止两个实例同时移动同一批文件。 |

@@ -15,5 +15,10 @@
 - 启动后焦点直接落在问题单号输入框，不再停在标题栏按钮上。
 - 背景三态：Mica / 亚克力 / 纯色，不可用时自动退回纯色；旧 `UseMicaBackdrop` 字段自动迁移。
 - 项目更名为 `log-organizer` / `LogOrganizer.exe`；配置目录改为 `%APPDATA%\log-organizer` 并自动迁移旧配置，清理旧名称的开机自启项。
-- 安全加固：合并或跨卷复制文件夹时不再跟随其中的联接点 / 符号链接（新增单元测试，测试总数 62）。
+- 安全加固：合并或跨卷复制文件夹时不再跟随其中的联接点 / 符号链接（新增单元测试，测试总数 73）。
+- 两个窗口都可最大化、自由缩放，并设最小尺寸（归档窗口 380×460 DIP，设置窗口 460×560 DIP）；位置与尺寸写盘，重启后还原。设置页的校验提示固定到页脚，不再被滚动内容挡住。
+- 托盘右键菜单改为自绘 Win32 菜单（`TrackPopupMenuEx`），六项均可执行；“打开目标目录”在未设置目标目录时置灰。修复此前右键无菜单（`H.NotifyIcon` 的 `PopupMenu` 模式依赖未引入的包）。
+- 唤醒方式变更：**移除空格 / 回车唤醒**（它需要全局键盘钩子，会吞掉其它程序的空格 / 回车），改为可配置全局快捷键 `RegisterHotKey`：默认 `Ctrl+Shift+L`、默认关闭，设置页可捕获改键，被占用时提示“已被其它程序占用”。旧字段 `WakeWithSpaceOrEnter` 直接丢弃；`config.json` 新增 `WakeHotkeyEnabled` / `WakeHotkey`。
+- 唤醒时把窗口提到前台并聚焦单号框（共享前台线程输入队列，必要时用合成 Alt 抬起前台锁）。
+- 程序图标改为代码绘制：`tools/IconGen` 逐档生成 16–256 px 的 `.ico`，exe、窗口、任务栏、托盘与两个窗口头部徽标共用同一套图形。
 - 新增许可证（GPL-3.0-only）、SECURITY / PRIVACY / THIRD-PARTY-NOTICES、`docs/security-audit.md` 与 `docs/RELEASE.md`，以及 `tools/make-release.ps1` 与 GitHub Actions 构建/发布流程。
