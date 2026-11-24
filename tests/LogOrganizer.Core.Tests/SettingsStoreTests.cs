@@ -27,11 +27,15 @@ public sealed class SettingsStoreTests
         Assert.IsNull(settings.TargetRoot);
         Assert.AreEqual(10, settings.QuietSeconds);
         Assert.IsFalse(settings.StartWithWindows);
+        Assert.IsFalse(settings.WakeHotkeyEnabled);
+        Assert.AreEqual(HotkeyGesture.DefaultText, settings.WakeHotkey);
         Assert.IsFalse(settings.PanelPinned);
         Assert.AreEqual(BackdropMode.Mica, settings.Backdrop);
         Assert.AreEqual(AppSettings.DefaultPanelOpacity, settings.PanelOpacity);
         Assert.AreEqual(-1, settings.PanelLeft);
         Assert.AreEqual(-1, settings.PanelTop);
+        Assert.AreEqual(0, settings.PanelWidth);
+        Assert.AreEqual(0, settings.PanelHeight);
         Assert.IsFalse(File.Exists(_store.FilePath), "loading must not create the config file");
     }
 
@@ -45,12 +49,15 @@ public sealed class SettingsStoreTests
             TargetRoot = @"E:\Archive",
             QuietSeconds = 25,
             StartWithWindows = true,
-            WakeWithSpaceOrEnter = false,
+            WakeHotkeyEnabled = true,
+            WakeHotkey = "Ctrl+Alt+K",
             PanelPinned = true,
             Backdrop = BackdropMode.Acrylic,
             PanelOpacity = 0.65,
             PanelLeft = 123,
             PanelTop = 456,
+            PanelWidth = 900,
+            PanelHeight = 760,
         });
 
         var loaded = _store.Load();
@@ -61,12 +68,73 @@ public sealed class SettingsStoreTests
         Assert.AreEqual(@"E:\Archive", loaded.TargetRoot);
         Assert.AreEqual(25, loaded.QuietSeconds);
         Assert.IsTrue(loaded.StartWithWindows);
-        Assert.IsFalse(loaded.WakeWithSpaceOrEnter);
+        Assert.IsTrue(loaded.WakeHotkeyEnabled);
+        Assert.AreEqual("Ctrl+Alt+K", loaded.WakeHotkey);
         Assert.IsTrue(loaded.PanelPinned);
         Assert.AreEqual(BackdropMode.Acrylic, loaded.Backdrop);
         Assert.AreEqual(0.65, loaded.PanelOpacity, 0.0001);
         Assert.AreEqual(123, loaded.PanelLeft);
         Assert.AreEqual(456, loaded.PanelTop);
+        Assert.AreEqual(900, loaded.PanelWidth);
+        Assert.AreEqual(760, loaded.PanelHeight);
+    }
+
+    /// <summary>
+    /// The retired Space/Enter switch was a global keyboard hook, which swallowed those keys in
+    /// every other app. The replacement hotkey starts disabled, so an upgraded config stays quiet.
+    /// </summary>
+    [TestMethod]
+    public void LegacyWakeSwitch_LoadsAsDisabledHotkey()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(
+            Path.Combine(_root, "config.json"),
+            """
+            {
+              "InboxRoot": "E:\\Inbox",
+              "WakeWithSpaceOrEnter": true
+            }
+            """);
+
+        var settings = _store.Load();
+
+        Assert.IsFalse(settings.WakeHotkeyEnabled);
+        Assert.AreEqual(HotkeyGesture.DefaultText, settings.WakeHotkey);
+
+        _store.Save(settings);
+        Assert.IsFalse(
+            File.ReadAllText(_store.FilePath).Contains("WakeWithSpaceOrEnter"),
+            "the retired switch must not be written back");
+    }
+
+    [TestMethod]
+    public void UnparsableHotkey_FallsBackToDefault()
+    {
+        var settings = SettingsStore.Normalize(new AppSettings { WakeHotkey = "L", WakeHotkeyEnabled = true });
+
+        Assert.AreEqual(HotkeyGesture.DefaultText, settings.WakeHotkey);
+        Assert.IsTrue(settings.WakeHotkeyEnabled);
+    }
+
+    [TestMethod]
+    public void HotkeyText_IsNormalizedToCanonicalOrder()
+    {
+        var settings = SettingsStore.Normalize(new AppSettings { WakeHotkey = " shift + ctrl + l " });
+
+        Assert.AreEqual("Ctrl+Shift+L", settings.WakeHotkey);
+    }
+
+    [TestMethod]
+    public void PanelSize_BelowMinimumOrUnset_IsRepaired()
+    {
+        Assert.AreEqual(0, SettingsStore.Normalize(new AppSettings { PanelWidth = 0 }).PanelWidth);
+        Assert.AreEqual(0, SettingsStore.Normalize(new AppSettings { PanelHeight = -40 }).PanelHeight);
+        Assert.AreEqual(
+            AppSettings.MinStoredPanelWidth,
+            SettingsStore.Normalize(new AppSettings { PanelWidth = 50 }).PanelWidth);
+        Assert.AreEqual(
+            AppSettings.MaxStoredPanelSize,
+            SettingsStore.Normalize(new AppSettings { PanelHeight = 999999 }).PanelHeight);
     }
 
     [TestMethod]

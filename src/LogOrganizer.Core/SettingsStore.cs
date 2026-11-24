@@ -185,6 +185,16 @@ public sealed class SettingsStore
             normalized.PanelTop = -1;
         }
 
+        normalized.PanelWidth = ClampSize(normalized.PanelWidth, AppSettings.MinStoredPanelWidth);
+        normalized.PanelHeight = ClampSize(normalized.PanelHeight, AppSettings.MinStoredPanelHeight);
+
+        if (!HotkeyGesture.TryParse(normalized.WakeHotkey, out var gesture))
+        {
+            gesture = HotkeyGesture.Default;
+        }
+
+        normalized.WakeHotkey = gesture.ToString();
+
         if (!Enum.IsDefined(normalized.Backdrop))
         {
             normalized.Backdrop = BackdropMode.Mica;
@@ -192,6 +202,13 @@ public sealed class SettingsStore
 
         return normalized;
     }
+
+    /// <summary>0 (unset) stays unset; anything else is a real size, so it gets clamped instead of dropped.</summary>
+    private static int ClampSize(int value, int minimum) => value switch
+    {
+        <= 0 => 0,
+        _ => Math.Clamp(value, minimum, AppSettings.MaxStoredPanelSize),
+    };
 
     private static bool IsValidPath(string path)
     {
