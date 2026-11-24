@@ -1,0 +1,61 @@
+name: release
+
+# Creates (or updates) a GitHub Release from a tag such as v0.01.
+# Both architectures are cross-built on the x64 runner; the ARM64 package is built and hashed here,
+# but nothing in CI can launch it, so ARM64 smoke testing is done by users on Windows on ARM.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish, e.g. v0.01'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build packages
+        run: ./tools/make-release.ps1
+        shell: pwsh
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          if (-not $tag) { $tag = '${{ github.ref_name }}' }
+          $files = @(Get-ChildItem artifacts -File |
+              Where-Object { $_.Name -like 'LogOrganizer-*.zip' -or $_.Name -like 'LogOrganizer-*.exe' -or $_.Name -eq 'SHA256SUMS.txt' } |
+              ForEach-Object { $_.FullName })
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+              gh release upload $tag @files --clobber
+          }
+          else {
+              gh release create $tag @files --title "日志归档助手 $tag" --generate-notes
+          }
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: |
+            artifacts/LogOrganizer-*.zip
+            artifacts/SHA256SUMS.txt
