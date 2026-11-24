@@ -71,4 +71,5 @@ git push origin v0.02
 - [ ] 两个 zip 解压后都能看到 `LogOrganizer.exe`、`VC_redist.*.exe`、`使用说明.txt`。
 - [ ] `SHA256SUMS.txt` 与附件实际哈希一致（`certutil -hashfile <文件> SHA256`）。
 - [ ] Release 说明写清：x64 已实机验证 / ARM64 待实机验证、需要 VC++ 运行库、未签名会触发 SmartScreen。
+- [ ] 发布说明写在该版本的 `docs/release-notes/<版本>.md`（去掉 `v`），`release.yml` 发现该文件就用它当正文；入库后随 tag 一起发布，别只在网页上手改。
 - [ ] 手工确认：托盘右键六项都能执行（含“打开目标目录”在未设置时置灰）、两个窗口的最大化按钮可用且不能缩到最小尺寸以下、启用快捷键后按组合键能唤醒并聚焦单号框、组合被占用时设置页给出提示。
