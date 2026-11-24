@@ -1,7 +1,12 @@
 using LogOrganizer.Core;
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Windows.System;
+using Windows.UI.Core;
 using WinRT.Interop;
 using Windows.Storage.Pickers;
 
@@ -9,6 +14,9 @@ namespace LogOrganizer.WinUI;
 
 public sealed partial class SettingsWindow : Window
 {
+    private const double MinWindowWidthDip = 460;
+    private const double MinWindowHeightDip = 560;
+
     private static readonly BackdropMode[] BackdropOrder =
     {
         BackdropMode.Mica,
@@ -16,14 +24,19 @@ public sealed partial class SettingsWindow : Window
         BackdropMode.Solid,
     };
 
-    private readonly AppSettings _current;
-    private readonly Window? _owner;
-    private TaskCompletionSource<AppSettings?>? _completion;
+    private const string HotkeyHintText =
+        "默认为 Ctrl+Shift+L。启用后本程序会独占该组合（例如 VS Code 里同名的“选中所有匹配项”会失效）。";
 
-    public SettingsWindow(AppSettings current, Window? owner = null)
+    private readonly AppSettings _current;
+    private readonly Func<HotkeyGesture, string?>? _probeHotkey;
+    private TaskCompletionSource<AppSettings?>? _completion;
+    private HotkeyGesture _hotkey;
+    private bool _capturingHotkey;
+
+    public SettingsWindow(AppSettings current, Window? owner = null, Func<HotkeyGesture, string?>? probeHotkey = null)
     {
         _current = current;
-        _owner = owner;
+        _probeHotkey = probeHotkey;
         InitializeComponent();
 
         WindowChrome.ResizeDip(this, 540, 820, owner);
@@ -31,27 +44,42 @@ public sealed partial class SettingsWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(TitleBar);
         var presenter = (OverlappedPresenter)AppWindow.Presenter;
-        presenter.IsResizable = false;
-        presenter.IsMaximizable = false;
+        presenter.IsResizable = true;
+        presenter.IsMaximizable = true;
+        presenter.IsMinimizable = true;
+        ApplyMinimumSize(presenter);
+        AppIcon.Apply(this);
         if (owner is not null)
         {
             WindowChrome.CenterOver(owner, this);
         }
+
+        _hotkey = HotkeyGesture.TryParse(current.WakeHotkey, out var parsed) ? parsed : HotkeyGesture.Default;
 
         InboxRootBox.Text = current.InboxRoot;
         InboxNameBox.Text = current.InboxFolderName;
         TargetBox.Text = current.TargetRoot ?? string.Empty;
         QuietSecondsBox.Value = current.QuietSeconds;
         StartupBox.IsChecked = current.StartWithWindows;
-        WakeBox.IsChecked = current.WakeWithSpaceOrEnter;
+        HotkeyBox.IsChecked = current.WakeHotkeyEnabled;
         PinnedBox.IsChecked = current.PanelPinned;
         OpacitySlider.Value = Math.Round(current.PanelOpacity * 100);
         BackdropBox.SelectedIndex = Math.Max(0, Array.IndexOf(BackdropOrder, current.Backdrop));
         VersionText.Text = $"版本 {AppVersion.Display}";
+        HotkeyHint.Text = HotkeyHintText;
+        UpdateHotkeyButton();
         UpdatePreview();
 
         TitleBar.Loaded += OnLoaded;
         Closed += OnClosed;
+    }
+
+    /// <summary>OverlappedPresenter takes physical pixels, so the floor follows the monitor scale.</summary>
+    private void ApplyMinimumSize(OverlappedPresenter presenter)
+    {
+        var scale = NativeMethods.DpiScale(WindowNative.GetWindowHandle(this));
+        presenter.PreferredMinimumWidth = (int)Math.Round(MinWindowWidthDip * scale);
+        presenter.PreferredMinimumHeight = (int)Math.Round(MinWindowHeightDip * scale);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -95,6 +123,114 @@ public sealed partial class SettingsWindow : Window
     }
 
     private void OnBackdropChanged(object sender, SelectionChangedEventArgs e) => ApplyBackdrop();
+
+    private void OnHotkeyToggled(object sender, RoutedEventArgs e)
+    {
+        // Only the hint changes; the combination is still editable while disabled.
+        UpdateHotkeyButton();
+    }
+
+    private void UpdateHotkeyButton()
+    {
+        if (HotkeyButton is null || _capturingHotkey)
+        {
+            return;
+        }
+
+        HotkeyButton.Content = _hotkey.ToString();
+        AutomationProperties.SetName(HotkeyButton, $"唤醒快捷键：{_hotkey}");
+    }
+
+    private void OnHotkeyButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (_capturingHotkey)
+        {
+            EndHotkeyCapture();
+            return;
+        }
+
+        _capturingHotkey = true;
+        HotkeyButton.Content = "请按下组合键…（Esc 取消）";
+        AutomationProperties.SetName(HotkeyButton, "请按下组合键");
+        HotkeyHint.Text = "按下任意“修饰键 + 单键”组合；Esc 取消。";
+        HotkeyButton.Focus(FocusState.Programmatic);
+    }
+
+    /// <summary>
+    /// PreviewKeyDown runs before the button turns Space/Enter into a Click, so a shortcut that uses
+    /// those keys is recorded instead of re-triggering the button.
+    /// </summary>
+    private void OnHotkeyCaptureKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (!_capturingHotkey)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (e.Key == VirtualKey.Escape)
+        {
+            EndHotkeyCapture();
+            return;
+        }
+
+        var virtualKey = (uint)e.Key;
+        if (HotkeyGesture.IsModifierKey(virtualKey))
+        {
+            return;
+        }
+
+        if (!HotkeyGesture.TryCreate(CurrentModifiers(), virtualKey, out var gesture))
+        {
+            HotkeyHint.Text = "需要至少一个 Ctrl / Alt / Shift / Win 修饰键；F12 保留给调试器，部分按键无法命名。";
+            return;
+        }
+
+        _hotkey = gesture;
+        EndHotkeyCapture();
+    }
+
+    private void EndHotkeyCapture()
+    {
+        _capturingHotkey = false;
+        HotkeyHint.Text = HotkeyHintText;
+        UpdateHotkeyButton();
+    }
+
+    private static HotkeyModifiers CurrentModifiers()
+    {
+        var modifiers = HotkeyModifiers.None;
+        if (IsDown(VirtualKey.Control))
+        {
+            modifiers |= HotkeyModifiers.Control;
+        }
+
+        if (IsDown(VirtualKey.Menu))
+        {
+            modifiers |= HotkeyModifiers.Alt;
+        }
+
+        if (IsDown(VirtualKey.Shift))
+        {
+            modifiers |= HotkeyModifiers.Shift;
+        }
+
+        if (IsDown(VirtualKey.LeftWindows) || IsDown(VirtualKey.RightWindows))
+        {
+            modifiers |= HotkeyModifiers.Windows;
+        }
+
+        return modifiers;
+    }
+
+    private static bool IsDown(VirtualKey key) =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
+
+    private void OnHotkeyReset(object sender, RoutedEventArgs e)
+    {
+        _hotkey = HotkeyGesture.Default;
+        EndHotkeyCapture();
+    }
 
     public async Task<AppSettings?> ShowAsync()
     {
@@ -217,6 +353,14 @@ public sealed partial class SettingsWindow : Window
             return;
         }
 
+        var hotkeyEnabled = HotkeyBox.IsChecked == true;
+        if (hotkeyEnabled && _probeHotkey?.Invoke(_hotkey) is { } hotkeyError)
+        {
+            ValidationText.Text = hotkeyError;
+            HotkeyButton.Focus(FocusState.Programmatic);
+            return;
+        }
+
         var updated = SettingsStore.Normalize(new AppSettings
         {
             InboxRoot = root,
@@ -224,12 +368,15 @@ public sealed partial class SettingsWindow : Window
             TargetRoot = target.Length == 0 ? null : target,
             QuietSeconds = (int)Math.Clamp(QuietSecondsBox.Value, AppSettings.MinQuietSeconds, AppSettings.MaxQuietSeconds),
             StartWithWindows = StartupBox.IsChecked == true,
-            WakeWithSpaceOrEnter = WakeBox.IsChecked == true,
+            WakeHotkeyEnabled = hotkeyEnabled,
+            WakeHotkey = _hotkey.ToString(),
             PanelPinned = PinnedBox.IsChecked == true,
             Backdrop = SelectedBackdrop(),
             PanelOpacity = OpacitySlider.Value / 100.0,
             PanelLeft = _current.PanelLeft,
             PanelTop = _current.PanelTop,
+            PanelWidth = _current.PanelWidth,
+            PanelHeight = _current.PanelHeight,
         });
 
         _completion?.TrySetResult(updated);

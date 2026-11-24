@@ -14,13 +14,17 @@ namespace LogOrganizer.WinUI;
 
 public sealed partial class MainWindow : Window
 {
+    /// <summary>Design floor for the panel; below this the footer buttons and list stop fitting.</summary>
+    private const double MinWindowWidthDip = 380;
+    private const double MinWindowHeightDip = 460;
+
     private readonly TrayApplicationContext _context;
     private bool _refreshing;
     private bool _busy;
-    private bool _isClosing;
     private bool _showingQuietPrompt;
     private bool _shutdown;
-    private WakeKeyHook? _wakeHook;
+    private System.Drawing.Icon? _trayIcon;
+    private TrayMenu? _trayMenu;
 
     public ICommand TrayDoubleClickCommand { get; } = new DelegateCommand(() =>
         ((App)Application.Current).ToggleWindow());
@@ -36,9 +40,13 @@ public sealed partial class MainWindow : Window
         SetTitleBar(TitleBar);
         var presenter = (OverlappedPresenter)AppWindow.Presenter;
         presenter.IsAlwaysOnTop = _context.IsPinned;
-        presenter.IsResizable = false;
-        presenter.IsMaximizable = false;
+        presenter.IsResizable = true;
+        presenter.IsMaximizable = true;
         presenter.IsMinimizable = true;
+        ApplyMinimumSize(presenter);
+        AppIcon.Apply(this);
+        ApplyTrayIcon();
+        ApplyTrayMenu();
         AppWindow.Changed += OnWindowChanged;
         AppWindow.Closing += OnWindowClosing;
         TitleBar.Loaded += OnLoaded;
@@ -46,10 +54,8 @@ public sealed partial class MainWindow : Window
         _context.PendingChanged += OnPendingChanged;
         _context.QuietActivity += OnQuietActivity;
         AlwaysOnTopButton.IsChecked = _context.IsPinned;
-        ((OverlappedPresenter)AppWindow.Presenter).IsAlwaysOnTop = _context.IsPinned;
         RefreshPending();
         UpdateStatus();
-        UpdateTrayMenu();
     }
 
     private void OnWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
@@ -59,10 +65,78 @@ public sealed partial class MainWindow : Window
             UpdateTitleBarLayout();
         }
 
-        if (args.DidPositionChange && Visible && !_context.IsPinned)
+        if (!Visible || (sender.Presenter as OverlappedPresenter)?.State != OverlappedPresenterState.Restored)
         {
-            _context.SaveWindowPosition(AppWindow.Position.X, AppWindow.Position.Y);
+            // A maximised window reports the virtual screen bounds, which must not become the saved size.
+            return;
         }
+
+        if (args.DidSizeChange)
+        {
+            _context.SaveWindowSize(sender.Size.Width, sender.Size.Height);
+        }
+
+        if (args.DidPositionChange && !_context.IsPinned)
+        {
+            _context.SaveWindowPosition(sender.Position.X, sender.Position.Y);
+        }
+    }
+
+    /// <summary>
+    /// OverlappedPresenter takes physical pixels, so the floor is scaled per monitor; without this the
+    /// panel would shrink to 380/1.5 DIP on a 150% display.
+    /// </summary>
+    private void ApplyMinimumSize(OverlappedPresenter presenter)
+    {
+        var scale = NativeMethods.DpiScale(WindowNative.GetWindowHandle(this));
+        presenter.PreferredMinimumWidth = (int)Math.Round(MinWindowWidthDip * scale);
+        presenter.PreferredMinimumHeight = (int)Math.Round(MinWindowHeightDip * scale);
+    }
+
+    private void ApplyTrayIcon()
+    {
+        _trayIcon = AppIcon.CreateTrayIcon();
+        if (_trayIcon is not null)
+        {
+            Tray.Icon = _trayIcon;
+        }
+    }
+
+    /// <summary>
+    /// The tray menu is a Win32 popup: H.NotifyIcon's default PopupMenu mode depends on a package we
+    /// do not ship, so right click is handled here and every item is wired to a real action.
+    /// </summary>
+    private void ApplyTrayMenu()
+    {
+        _trayMenu = TrayMenu.TryCreate(
+            _context.ToggleWindow,
+            () => _ = OpenSettingsAsync(),
+            () => _context.OpenFolder(_context.Settings.InboxPath),
+            () => _context.OpenFolder(_context.Settings.TargetRoot),
+            _context.TogglePause,
+            _context.Shutdown,
+            out var error);
+        if (_trayMenu is null)
+        {
+            ShowStatus(error ?? "托盘菜单不可用。", isError: true);
+            return;
+        }
+
+        Tray.RightClickCommand = new DelegateCommand(ShowTrayMenu);
+    }
+
+    /// <summary>
+    /// Runs synchronously because TrackPopupMenu is modal: it returns the chosen command, which is
+    /// applied straight after the menu closes.
+    /// </summary>
+    private void ShowTrayMenu()
+    {
+        if (_trayMenu is null || !NativeMethods.GetCursorPos(out var point))
+        {
+            return;
+        }
+
+        _trayMenu.Show(Visible, _context.IsPaused, _context.HasTarget, point.X, point.Y);
     }
 
     public void FocusTicketBox()
@@ -213,8 +287,6 @@ public sealed partial class MainWindow : Window
     public void DisposeForShutdown()
     {
         _shutdown = true;
-        _wakeHook?.Dispose();
-        _wakeHook = null;
         Closed -= OnClosed;
         AppWindow.Closing -= OnWindowClosing;
         AppWindow.Changed -= OnWindowChanged;
@@ -236,10 +308,10 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
-        _isClosing = true;
-        _wakeHook?.Dispose();
         _context.PendingChanged -= OnPendingChanged;
         _context.QuietActivity -= OnQuietActivity;
+        _trayIcon?.Dispose();
+        _trayIcon = null;
         if (!_shutdown)
         {
             _context.Shutdown();
@@ -248,21 +320,7 @@ public sealed partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var saved = _context.Settings;
-        if (saved.PanelLeft >= 0 && saved.PanelTop >= 0)
-        {
-            AppWindow.Move(new Windows.Graphics.PointInt32(saved.PanelLeft, saved.PanelTop));
-        }
-        else
-        {
-            CenterOnScreen();
-        }
-
-        if (_context.Settings.WakeWithSpaceOrEnter)
-        {
-            _wakeHook = new WakeKeyHook(ShouldWake, FocusTicketBox);
-        }
-
+        RestorePanelBounds(_context.Settings);
         ApplyPinnedOpacity();
         ApplyBackdrop();
         UpdateTitleBarLayout();
@@ -303,7 +361,11 @@ public sealed partial class MainWindow : Window
             20, 14, inset + WindowChrome.CaptionButtonWidthDip + 8, 14);
     }
 
-    private void CenterOnScreen()
+    /// <summary>
+    /// Reapplies the last size and position. Both are clamped to the current work area so a monitor
+    /// change cannot leave the panel off-screen or taller than the display.
+    /// </summary>
+    private void RestorePanelBounds(AppSettings saved)
     {
         var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest);
         if (display is null)
@@ -312,16 +374,19 @@ public sealed partial class MainWindow : Window
         }
 
         var area = display.WorkArea;
-        AppWindow.Move(new Windows.Graphics.PointInt32(
-            area.X + (area.Width - AppWindow.Size.Width) / 2,
-            area.Y + (area.Height - AppWindow.Size.Height) / 2));
-    }
+        if (saved.PanelWidth > 0 && saved.PanelHeight > 0)
+        {
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(
+                Math.Min(saved.PanelWidth, area.Width),
+                Math.Min(saved.PanelHeight, area.Height)));
+        }
 
-    private bool ShouldWake()
-    {
-        var foreground = NativeMethods.GetForegroundWindow();
-        return !_isClosing && foreground != WindowNative.GetWindowHandle(this)
-            && !NativeMethods.IsTextInputFocused(foreground);
+        var size = AppWindow.Size;
+        var x = saved.PanelLeft >= 0 ? saved.PanelLeft : area.X + ((area.Width - size.Width) / 2);
+        var y = saved.PanelTop >= 0 ? saved.PanelTop : area.Y + ((area.Height - size.Height) / 2);
+        AppWindow.Move(new Windows.Graphics.PointInt32(
+            Math.Clamp(x, area.X, Math.Max(area.X, area.X + area.Width - size.Width)),
+            Math.Clamp(y, area.Y, Math.Max(area.Y, area.Y + area.Height - size.Height))));
     }
 
     private void OnPendingChanged(object? sender, EventArgs e) => RefreshPending();
@@ -548,59 +613,31 @@ public sealed partial class MainWindow : Window
     private void ApplyBackdrop() =>
         WindowChrome.ApplyBackdrop(this, RootSurface, _context.Settings.Backdrop);
 
-    private async void OnOpenSettings(object sender, RoutedEventArgs e)
+    private async void OnOpenSettings(object sender, RoutedEventArgs e) => await OpenSettingsAsync();
+
+    private async Task OpenSettingsAsync()
     {
         if (_busy)
         {
             return;
         }
 
-        var settings = new SettingsWindow(_context.Settings.Clone(), this);
+        var settings = new SettingsWindow(_context.Settings.Clone(), this, _context.ProbeHotkey);
         var updated = await settings.ShowAsync();
         if (updated is null)
         {
             return;
         }
 
-        _context.ApplySettings(updated);
+        var hotkeyError = _context.ApplySettings(updated);
         AlwaysOnTopButton.IsChecked = _context.IsPinned;
-        ((OverlappedPresenter)AppWindow.Presenter).IsAlwaysOnTop = _context.IsPinned;
         ApplyPinnedOpacity();
         ApplyBackdrop();
         RefreshPendingCore();
-        UpdateTrayMenu();
-        if (_context.Settings.WakeWithSpaceOrEnter && _wakeHook is null)
+        if (hotkeyError is not null)
         {
-            _wakeHook = new WakeKeyHook(ShouldWake, FocusTicketBox);
+            ShowStatus(hotkeyError, isError: true);
         }
-        else if (!_context.Settings.WakeWithSpaceOrEnter)
-        {
-            _wakeHook?.Dispose();
-            _wakeHook = null;
-        }
-    }
-
-    private void OnOpenInbox(object sender, RoutedEventArgs e) => _context.OpenFolder(_context.Settings.InboxPath);
-    private void OnOpenTarget(object sender, RoutedEventArgs e) => _context.OpenFolder(_context.Settings.TargetRoot);
-
-    private void OnTogglePause(object sender, RoutedEventArgs e)
-    {
-        _context.TogglePause();
-        RefreshPendingCore();
-    }
-
-    public void RefreshTrayMenu() => UpdateTrayMenu();
-
-    private void UpdateTrayMenu()
-    {
-        if (PauseMenuItem is null)
-        {
-            return;
-        }
-
-        PauseMenuItem.Text = _context.IsPaused ? "继续监控" : "暂停监控";
-        OpenTargetMenuItem.IsEnabled = _context.HasTarget;
-        ToolTipService.SetToolTip(AlwaysOnTopButton, _context.IsPinned ? "取消置顶，恢复静默期归档提示" : "置顶窗口并停用静默期弹窗");
     }
 
     private void UpdateStatus()
@@ -629,8 +666,4 @@ public sealed partial class MainWindow : Window
         StatusText.Text = message;
         StatusText.Foreground = (Brush)Application.Current.Resources[isError ? "AppDangerBrush" : "AppMutedBrush"];
     }
-
-    private void OnExit(object sender, RoutedEventArgs e) => _context.Shutdown();
-
-    private void OnToggleWindow(object sender, RoutedEventArgs e) => _context.ToggleWindow();
 }

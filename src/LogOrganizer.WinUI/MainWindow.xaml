@@ -5,20 +5,6 @@
     xmlns:tb="using:H.NotifyIcon"
     Title="日志归档助手">
     <Grid x:Name="RootSurface" Background="{ThemeResource AppSolidSurfaceBrush}">
-        <Grid.Resources>
-            <ResourceDictionary>
-                <MenuFlyout x:Key="TrayMenu">
-                    <MenuFlyoutItem Text="显示 / 隐藏归档窗口" Click="OnToggleWindow" />
-                    <MenuFlyoutItem Text="设置…" Click="OnOpenSettings" />
-                    <MenuFlyoutItem x:Name="OpenInboxMenuItem" Text="打开中转目录" Click="OnOpenInbox" />
-                    <MenuFlyoutItem x:Name="OpenTargetMenuItem" Text="打开目标目录" Click="OnOpenTarget" />
-                    <MenuFlyoutSeparator />
-                    <MenuFlyoutItem x:Name="PauseMenuItem" Text="暂停监控" Click="OnTogglePause" />
-                    <MenuFlyoutItem Text="退出" Click="OnExit" />
-                </MenuFlyout>
-            </ResourceDictionary>
-        </Grid.Resources>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -34,9 +20,8 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="38" Height="38" CornerRadius="12" Background="{ThemeResource AppAccentBrush}">
-                        <FontIcon Glyph="&#xE8B7;" FontSize="19" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Image Width="38" Height="38" Stretch="Uniform"
+                           Source="ms-appx:///Assets/LogOrganizer-256.png" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="日志归档助手" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource AppTextBrush}" />
                         <TextBlock x:Name="InboxSubtitle" FontSize="11" Foreground="{ThemeResource AppMutedBrush}" TextTrimming="CharacterEllipsis" />
@@ -52,7 +37,8 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Padding="18,14,18,10" RowSpacing="10">
+        <!-- MaxWidth keeps the cards readable when the panel is maximised on a wide display. -->
+        <Grid Grid.Row="1" Padding="18,14,18,10" RowSpacing="10" MaxWidth="860" HorizontalAlignment="Stretch">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -124,7 +110,7 @@
 
         <Border Grid.Row="2" Padding="18,11" Background="{ThemeResource AppCardBrush}"
                 BorderBrush="{ThemeResource AppLineBrush}" BorderThickness="0,1,0,0">
-            <Grid ColumnSpacing="8">
+            <Grid ColumnSpacing="8" MaxWidth="860" HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -135,12 +121,10 @@
             </Grid>
         </Border>
 
-        <tb:TaskbarIcon x:Name="Tray" ToolTipText="日志归档助手" ContextFlyout="{StaticResource TrayMenu}"
+        <!-- Icon and right-click menu are assigned in code-behind: the menu is a Win32 popup so it
+             can open at the cursor, next to the tray icon. -->
+        <tb:TaskbarIcon x:Name="Tray" ToolTipText="日志归档助手"
                         DoubleClickCommand="{x:Bind TrayDoubleClickCommand}" Width="1" Height="1"
-                        Opacity="0" IsHitTestVisible="False">
-            <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource Text="档" Foreground="White" Background="#D9832B" FontSize="34" />
-            </tb:TaskbarIcon.IconSource>
-        </tb:TaskbarIcon>
+                        Opacity="0" IsHitTestVisible="False" />
     </Grid>
 </Window>

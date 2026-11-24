@@ -3,6 +3,7 @@ using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using LogOrganizer.Core;
+using WinRT.Interop;
 
 namespace LogOrganizer.WinUI;
 
@@ -13,20 +14,30 @@ internal sealed class TrayApplicationContext : IDisposable
     private readonly App _app;
     private readonly SettingsStore _store = new();
     private readonly DispatcherQueueTimer _pollTimer;
+    private readonly DispatcherQueueTimer _saveTimer;
     private readonly Dictionary<string, string> _itemErrors = new(StringComparer.OrdinalIgnoreCase);
     private InboxWatcher? _watcher;
     private MainWindow? _window;
+    private GlobalHotkey? _hotkey;
     private AppSettings _settings;
     private bool _disposed;
     private bool _paused;
+    private bool _savePending;
 
     public TrayApplicationContext(App app)
     {
         _app = app;
         _settings = _store.Load();
-        _pollTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        var queue = DispatcherQueue.GetForCurrentThread();
+        _pollTimer = queue.CreateTimer();
         _pollTimer.Interval = TimeSpan.FromMilliseconds(250);
         _pollTimer.Tick += OnPollTick;
+
+        // Dragging a window edge raises DidSizeChange dozens of times a second; write once it settles.
+        _saveTimer = queue.CreateTimer();
+        _saveTimer.Interval = TimeSpan.FromMilliseconds(700);
+        _saveTimer.IsRepeating = false;
+        _saveTimer.Tick += OnSaveTick;
     }
 
     public AppSettings Settings => _settings;
@@ -46,6 +57,12 @@ internal sealed class TrayApplicationContext : IDisposable
         if (IsPinned)
         {
             ShowWindow();
+        }
+
+        var hotkeyError = ApplyHotkey();
+        if (hotkeyError is not null)
+        {
+            _window.ShowStatusMessage(hotkeyError, isError: true);
         }
 
         _pollTimer.Start();
@@ -104,17 +121,27 @@ internal sealed class TrayApplicationContext : IDisposable
 
         SaveSettings();
         _window?.RefreshPending();
-        _window?.RefreshTrayMenu();
     }
 
     public void SaveWindowPosition(int left, int top)
     {
         _settings.PanelLeft = left;
         _settings.PanelTop = top;
-        SaveSettings();
+        QueueSave();
     }
 
-    public void ApplySettings(AppSettings updated)
+    public void SaveWindowSize(int width, int height)
+    {
+        _settings.PanelWidth = width;
+        _settings.PanelHeight = height;
+        QueueSave();
+    }
+
+    /// <summary>
+    /// Applies the edited settings and returns the shortcut registration error, if the newly chosen
+    /// combination turned out to be taken between the probe and the save.
+    /// </summary>
+    public string? ApplySettings(AppSettings updated)
     {
         _settings = SettingsStore.Normalize(updated);
         _paused = false;
@@ -122,7 +149,48 @@ internal sealed class TrayApplicationContext : IDisposable
         StartWatcher();
         ApplyStartupRegistration();
         SaveSettings();
+        return ApplyHotkey();
     }
+
+    /// <summary>
+    /// Checks whether a combination can be registered right now, without losing the active shortcut.
+    /// RegisterHotKey is exclusive, so the only honest test is to try it and give it back.
+    /// </summary>
+    public string? ProbeHotkey(HotkeyGesture gesture)
+    {
+        if (_hotkey is not null && _hotkey.Gesture == gesture)
+        {
+            return null;
+        }
+
+        _hotkey?.Dispose();
+        _hotkey = null;
+        var probe = GlobalHotkey.TryCreate(gesture, static () => { }, out var error);
+        probe?.Dispose();
+        ApplyHotkey();
+        return error;
+    }
+
+    /// <summary>Registers the configured shortcut, or returns why it could not be registered.</summary>
+    private string? ApplyHotkey()
+    {
+        _hotkey?.Dispose();
+        _hotkey = null;
+        if (!_settings.WakeHotkeyEnabled)
+        {
+            return null;
+        }
+
+        if (!HotkeyGesture.TryParse(_settings.WakeHotkey, out var gesture))
+        {
+            gesture = HotkeyGesture.Default;
+        }
+
+        _hotkey = GlobalHotkey.TryCreate(gesture, OnHotkeyPressed, out var error);
+        return _hotkey is null ? error : null;
+    }
+
+    private void OnHotkeyPressed() => _window?.FocusTicketBox();
 
     public void TogglePause()
     {
@@ -141,7 +209,6 @@ internal sealed class TrayApplicationContext : IDisposable
         }
 
         _window?.RefreshPending();
-        _window?.RefreshTrayMenu();
     }
 
     public void OpenFolder(string? path)
@@ -171,6 +238,7 @@ internal sealed class TrayApplicationContext : IDisposable
 
         _window.AppWindow.Show();
         _window.Activate();
+        NativeMethods.ForceForeground(WindowNative.GetWindowHandle(_window));
     }
 
     public void ToggleWindow()
@@ -248,6 +316,7 @@ internal sealed class TrayApplicationContext : IDisposable
 
     private void SaveSettings()
     {
+        _savePending = false;
         try
         {
             _store.Save(_settings);
@@ -258,6 +327,15 @@ internal sealed class TrayApplicationContext : IDisposable
             _window?.ShowStatusMessage($"保存设置失败：{ex.Message}", isError: true);
         }
     }
+
+    private void QueueSave()
+    {
+        _savePending = true;
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    private void OnSaveTick(DispatcherQueueTimer sender, object args) => SaveSettings();
 
     public void Shutdown()
     {
@@ -275,6 +353,16 @@ internal sealed class TrayApplicationContext : IDisposable
         _disposed = true;
         _pollTimer.Stop();
         _pollTimer.Tick -= OnPollTick;
+        _saveTimer.Stop();
+        _saveTimer.Tick -= OnSaveTick;
+        if (_savePending)
+        {
+            // Flush the last drag/resize instead of losing it because the app is exiting.
+            SaveSettings();
+        }
+
+        _hotkey?.Dispose();
+        _hotkey = null;
         _watcher?.Dispose();
         _watcher = null;
         _app.ReleaseSingleInstance();

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Draws the application icon. Not part of LogOrganizer.sln, so normal builds and CI never
+    compile it; run it by hand after changing the artwork (see tools/README.md for the command).
+
+    System.Drawing comes from the Windows Desktop framework reference, so no NuGet package
+    is needed beyond what the SDK already installs.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>IconGen</RootNamespace>
+  </PropertyGroup>
+
+</Project>

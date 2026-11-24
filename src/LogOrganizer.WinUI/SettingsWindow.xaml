@@ -19,10 +19,8 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="38" Height="38" CornerRadius="12" Background="{ThemeResource AppAccentBrush}">
-                        <FontIcon Glyph="&#xE713;" FontSize="19" Foreground="White"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Image Width="38" Height="38" Stretch="Uniform"
+                           Source="ms-appx:///Assets/LogOrganizer-256.png" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="设置" FontSize="18" FontWeight="SemiBold"
                                    Foreground="{ThemeResource AppTextBrush}" />
@@ -33,8 +31,10 @@
             </Grid>
         </Border>
 
-        <ScrollViewer Grid.Row="1" Padding="20,14">
-            <StackPanel Spacing="12">
+        <!-- Cards stay at a readable width when the window is maximised; the scroll view keeps them reachable. -->
+        <ScrollViewer Grid.Row="1" Padding="20,14" HorizontalScrollMode="Disabled"
+                      HorizontalContentAlignment="Stretch">
+            <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Center">
                 <Border Style="{StaticResource AppCardStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="路径" Style="{StaticResource AppSectionTitleStyle}" />
@@ -78,7 +78,23 @@
                                        SpinButtonPlacementMode="Inline" HorizontalAlignment="Stretch" />
                         </StackPanel>
                         <CheckBox x:Name="StartupBox" Content="开机自动启动（默认关闭）" />
-                        <CheckBox x:Name="WakeBox" Content="允许用空格 / 回车唤醒归档窗口" />
+                        <StackPanel Spacing="4">
+                            <CheckBox x:Name="HotkeyBox" Content="启用全局快捷键唤醒（默认关闭）"
+                                      Checked="OnHotkeyToggled" Unchecked="OnHotkeyToggled" />
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="HotkeyButton" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Click="OnHotkeyButtonClick" PreviewKeyDown="OnHotkeyCaptureKeyDown"
+                                        AutomationProperties.Name="唤醒快捷键" />
+                                <Button Grid.Column="1" Content="恢复默认" Click="OnHotkeyReset" />
+                            </Grid>
+                            <TextBlock x:Name="HotkeyHint" FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{ThemeResource AppMutedBrush}" />
+                        </StackPanel>
                         <CheckBox x:Name="PinnedBox" Content="启动时置顶显示；取消置顶后恢复静默期提示" />
                     </StackPanel>
                 </Border>
@@ -103,17 +119,23 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-
-                <TextBlock x:Name="ValidationText" Foreground="{ThemeResource AppDangerBrush}" TextWrapping="Wrap" />
             </StackPanel>
         </ScrollViewer>
 
         <Border Grid.Row="2" Padding="18,11" Background="{ThemeResource AppCardBrush}"
                 BorderBrush="{ThemeResource AppLineBrush}" BorderThickness="0,1,0,0">
-            <Grid>
-                <TextBlock x:Name="VersionText" VerticalAlignment="Center" FontSize="11"
+            <Grid MaxWidth="760" HorizontalAlignment="Stretch" RowSpacing="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <!-- Kept outside the scroll area so a save error can never hide below the fold. -->
+                <TextBlock x:Name="ValidationText" Grid.Row="0" FontSize="11"
+                           Foreground="{ThemeResource AppDangerBrush}" TextWrapping="Wrap" />
+                <TextBlock x:Name="VersionText" Grid.Row="1" VerticalAlignment="Center" FontSize="11"
+                           HorizontalAlignment="Left"
                            Foreground="{ThemeResource AppMutedBrush}" />
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                     <Button Content="取消" Click="OnCancel" />
                     <Button Content="保存设置" Click="OnSave" Style="{StaticResource AccentButtonStyle}" />
                 </StackPanel>

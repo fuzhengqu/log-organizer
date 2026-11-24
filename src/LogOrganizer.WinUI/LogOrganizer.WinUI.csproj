@@ -13,6 +13,8 @@
     <AssemblyName>LogOrganizer</AssemblyName>
     <RootNamespace>LogOrganizer.WinUI</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Drawn by tools/IconGen; the same .ico feeds the exe, the window and the tray. -->
+    <ApplicationIcon>Assets\LogOrganizer.ico</ApplicationIcon>
     <!-- 自包含发布自带 Windows App Runtime，引导器必须关闭；框架依赖发布必须打开，否则 Application.Start 报 REGDB_E_CLASSNOTREG。 -->
     <WindowsAppSDKBootstrapInitialize Condition="'$(WindowsAppSDKSelfContained)' == 'true'">false</WindowsAppSDKBootstrapInitialize>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
@@ -23,6 +25,17 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <ProjectReference Include="..\LogOrganizer.Core\LogOrganizer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copied next to the exe (and extracted for the single-file build) so AppWindow.SetIcon and
+         the tray can load the multi-frame .ico at runtime. -->
+    <Content Include="Assets\LogOrganizer.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\LogOrganizer-256.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
