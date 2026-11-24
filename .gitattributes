@@ -1,0 +1,19 @@
+# Normalise line endings in the repository; keep binaries untouched.
+* text=auto
+
+*.png binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.zip binary
+
+*.ps1 text
+*.psm1 text
+*.cs text
+*.xaml text
+*.csproj text
+*.props text
+*.sln text
+*.md text
+*.yml text
+*.json text

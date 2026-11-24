@@ -1,0 +1,18 @@
+bin/
+obj/
+publish/
+publish-x64/
+publish-arm64/
+publish_dir/
+publish_fd/
+.vs/
+TestResults/
+_test-temp/
+.superpowers/
+.planning/
+artifacts/
+*.user
+*.suo
+
+# Release packaging output (see tools/make-release.ps1)
+artifacts/vcredist/
