@@ -1,0 +1,137 @@
+<Application
+    x:Class="LogOrganizer.WinUI.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="AccentButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource AppAccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="18,9" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <!-- Card used by both windows so the shell and the settings page share one surface. -->
+            <Style x:Key="AppCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource AppCardBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource AppLineBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="Padding" Value="14,12" />
+            </Style>
+            <Style x:Key="AppSectionTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource AppTextBrush}" />
+            </Style>
+            <Style x:Key="AppFieldLabelStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="Foreground" Value="{ThemeResource AppMutedBrush}" />
+            </Style>
+            <!--
+                Pin button that sits next to the system caption buttons: same 46x32 hit area,
+                transparent fill, rounded 4 hover/pressed highlight and the caption glyph colour.
+            -->
+            <Style x:Key="CaptionToggleButtonStyle" TargetType="ToggleButton">
+                <Setter Property="Width" Value="46" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Foreground" Value="{ThemeResource AppCaptionGlyphBrush}" />
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Grid x:Name="Root" Background="Transparent">
+                                <Border x:Name="Fill"
+                                        Background="{TemplateBinding Background}" />
+                                <FontIcon x:Name="Glyph" Glyph="&#xE840;" FontSize="14"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border x:Name="FocusRing" CornerRadius="3" Margin="1"
+                                        BorderThickness="1" BorderBrush="{ThemeResource AppAccentBrush}"
+                                        Visibility="Collapsed" />
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CheckStates">
+                                        <VisualState x:Name="Unchecked" />
+                                        <VisualState x:Name="Checked">
+                                            <VisualState.Setters>
+                                                <Setter Target="Fill.Background" Value="{ThemeResource AppCaptionCheckedBrush}" />
+                                                <Setter Target="Glyph.Foreground" Value="{ThemeResource AppAccentBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Indeterminate" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Fill.Background" Value="{ThemeResource AppCaptionHoverBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Fill.Background" Value="{ThemeResource AppCaptionPressedBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Glyph.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="FocusStates">
+                                        <VisualState x:Name="Unfocused" />
+                                        <VisualState x:Name="PointerFocused" />
+                                        <VisualState x:Name="Focused">
+                                            <VisualState.Setters>
+                                                <Setter Target="FocusRing.Visibility" Value="Visible" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <!-- Used when a Mica/Acrylic backdrop is active: the window shows the system material instead of a fill. -->
+            <SolidColorBrush x:Key="AppTransparentBrush" Color="Transparent" />
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="AppSolidSurfaceColor">#FFF8F5EF</Color>
+                    <SolidColorBrush x:Key="AppSolidSurfaceBrush" Color="{ThemeResource AppSolidSurfaceColor}" />
+                    <SolidColorBrush x:Key="AppCardBrush" Color="#B3FFFFFF" />
+                    <SolidColorBrush x:Key="AppLineBrush" Color="#1F000000" />
+                    <SolidColorBrush x:Key="AppAccentBrush" Color="#FFB85C24" />
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#FF28231F" />
+                    <SolidColorBrush x:Key="AppMutedBrush" Color="#FF6B635C" />
+                    <SolidColorBrush x:Key="AppDangerBrush" Color="#FFB42318" />
+                    <SolidColorBrush x:Key="AppCaptionGlyphBrush" Color="#E6000000" />
+                    <SolidColorBrush x:Key="AppCaptionHoverBrush" Color="#14000000" />
+                    <SolidColorBrush x:Key="AppCaptionPressedBrush" Color="#24000000" />
+                    <SolidColorBrush x:Key="AppCaptionCheckedBrush" Color="#1FB85C24" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="AppSolidSurfaceColor">#FF201D1A</Color>
+                    <SolidColorBrush x:Key="AppSolidSurfaceBrush" Color="{ThemeResource AppSolidSurfaceColor}" />
+                    <SolidColorBrush x:Key="AppCardBrush" Color="#33FFFFFF" />
+                    <SolidColorBrush x:Key="AppLineBrush" Color="#26FFFFFF" />
+                    <SolidColorBrush x:Key="AppAccentBrush" Color="#FFFFAC70" />
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#FFF5F0EA" />
+                    <SolidColorBrush x:Key="AppMutedBrush" Color="#FFB9AFA5" />
+                    <SolidColorBrush x:Key="AppDangerBrush" Color="#FFFF8A80" />
+                    <SolidColorBrush x:Key="AppCaptionGlyphBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="AppCaptionHoverBrush" Color="#1AFFFFFF" />
+                    <SolidColorBrush x:Key="AppCaptionPressedBrush" Color="#26FFFFFF" />
+                    <SolidColorBrush x:Key="AppCaptionCheckedBrush" Color="#33FFAC70" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
