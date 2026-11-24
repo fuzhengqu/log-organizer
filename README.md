@@ -97,7 +97,9 @@
 # 构建（x64）
 dotnet build LogOrganizer.sln -c Release -p:Platform=x64
 
-# 运行核心单元测试（62 个用例）
+# 运行核心单元测试（73 个用例）
+dotnet test LogOrganizer.sln -c Release -p:Platform=x64
+# 或者直接跑测试可执行文件（等价，且不依赖测试宿主）
 tests\LogOrganizer.Core.Tests\bin\Release\net10.0\LogOrganizer.Core.Tests.exe
 
 # 默认发布：自包含单文件，输出 publish\LogOrganizer.exe
@@ -111,7 +113,7 @@ tests\LogOrganizer.Core.Tests\bin\Release\net10.0\LogOrganizer.Core.Tests.exe
 ```
 
 - 自包含单文件是唯一推荐的分发形态：WinUI 3 不支持“框架依赖 + 单文件”组合，该组合能编译但运行时会崩溃，因此 `-FrameworkDependent` 固定输出多文件目录。
-- 本机 `dotnet test` 可能受 VSTest 宿主权限限制（命名管道 / 父进程句柄），此时直接运行上面的测试可执行文件即可。
+- 测试项目用 MSTest.Sdk + Microsoft.Testing.Platform，`global.json` 里的 `test.runner` 是 .NET 10 要求的显式选择（否则 `dotnet test` 直接报“不再支持 VSTest”）。在受管控的机器上 `dotnet test` 可能卡在测试宿主的命名管道连接，此时直接运行上面的测试可执行文件即可，结果等价。
 - 打正式包（两个架构 + VC++ 运行库 + 校验清单）用 `tools/make-release.ps1`，流程与发布检查表见 [docs/RELEASE.md](docs/RELEASE.md)。
 
 ## 九、项目结构
