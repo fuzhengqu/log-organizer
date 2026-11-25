@@ -23,7 +23,9 @@
                     <Image Width="38" Height="38" Stretch="Uniform"
                            Source="ms-appx:///Assets/LogOrganizer-256.png" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                        <TextBlock Text="日志归档助手" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource AppTextBrush}" />
+                        <TextBlock Text="日志归档助手" FontSize="18" FontWeight="SemiBold"
+                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource AppTextBrush}" />
                         <TextBlock x:Name="InboxSubtitle" FontSize="11" Foreground="{ThemeResource AppMutedBrush}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </Grid>

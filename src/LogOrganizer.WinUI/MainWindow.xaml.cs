@@ -15,7 +15,7 @@ namespace LogOrganizer.WinUI;
 public sealed partial class MainWindow : Window
 {
     /// <summary>Design floor for the panel; below this the footer buttons and list stop fitting.</summary>
-    private const double MinWindowWidthDip = 380;
+    private const double MinWindowWidthDip = 420;
     private const double MinWindowHeightDip = 460;
 
     private readonly TrayApplicationContext _context;

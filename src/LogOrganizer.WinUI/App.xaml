@@ -48,10 +48,15 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="ToggleButton">
                             <Grid x:Name="Root" Background="Transparent">
-                                <Border x:Name="Fill"
-                                        Background="{TemplateBinding Background}" />
+                                <!--
+                                    Two fills: the base one carries the pinned tint so it stays visible while the
+                                    pointer is still over the button after a click, the overlay adds hover/pressed.
+                                -->
+                                <Border x:Name="PinFill" Background="Transparent" />
+                                <Border x:Name="HoverFill" Background="Transparent" />
                                 <FontIcon x:Name="Glyph" Glyph="&#xE840;" FontSize="14"
                                           Foreground="{TemplateBinding Foreground}"
+                                          RenderTransformOrigin="0.5,0.5"
                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 <Border x:Name="FocusRing" CornerRadius="3" Margin="1"
                                         BorderThickness="1" BorderBrush="{ThemeResource AppAccentBrush}"
@@ -61,8 +66,14 @@
                                         <VisualState x:Name="Unchecked" />
                                         <VisualState x:Name="Checked">
                                             <VisualState.Setters>
-                                                <Setter Target="Fill.Background" Value="{ThemeResource AppCaptionCheckedBrush}" />
+                                                <Setter Target="PinFill.Background" Value="{ThemeResource AppCaptionCheckedBrush}" />
                                                 <Setter Target="Glyph.Foreground" Value="{ThemeResource AppAccentBrush}" />
+                                                <!-- Segoe's pin glyph is diagonal; upright reads as "pinned in". -->
+                                                <Setter Target="Glyph.RenderTransform">
+                                                    <Setter.Value>
+                                                        <RotateTransform Angle="-45" />
+                                                    </Setter.Value>
+                                                </Setter>
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Indeterminate" />
@@ -71,12 +82,12 @@
                                         <VisualState x:Name="Normal" />
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Fill.Background" Value="{ThemeResource AppCaptionHoverBrush}" />
+                                                <Setter Target="HoverFill.Background" Value="{ThemeResource AppCaptionHoverBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="Fill.Background" Value="{ThemeResource AppCaptionPressedBrush}" />
+                                                <Setter Target="HoverFill.Background" Value="{ThemeResource AppCaptionPressedBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled">

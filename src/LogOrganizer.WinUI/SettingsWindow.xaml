@@ -23,6 +23,7 @@
                            Source="ms-appx:///Assets/LogOrganizer-256.png" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="设置" FontSize="18" FontWeight="SemiBold"
+                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                    Foreground="{ThemeResource AppTextBrush}" />
                         <TextBlock Text="配置中转目录、归档位置与外观" FontSize="11"
                                    Foreground="{ThemeResource AppMutedBrush}" TextTrimming="CharacterEllipsis" />
@@ -31,10 +32,10 @@
             </Grid>
         </Border>
 
-        <!-- Cards stay at a readable width when the window is maximised; the scroll view keeps them reachable. -->
+        <!-- Cards stretch to the same 860 measure as the archive window; MaxWidth centres them when maximised. -->
         <ScrollViewer Grid.Row="1" Padding="20,14" HorizontalScrollMode="Disabled"
                       HorizontalContentAlignment="Stretch">
-            <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Center">
+            <StackPanel Spacing="12" MaxWidth="860" HorizontalAlignment="Stretch">
                 <Border Style="{StaticResource AppCardStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="路径" Style="{StaticResource AppSectionTitleStyle}" />
@@ -124,7 +125,7 @@
 
         <Border Grid.Row="2" Padding="18,11" Background="{ThemeResource AppCardBrush}"
                 BorderBrush="{ThemeResource AppLineBrush}" BorderThickness="0,1,0,0">
-            <Grid MaxWidth="760" HorizontalAlignment="Stretch" RowSpacing="6">
+            <Grid MaxWidth="860" HorizontalAlignment="Stretch" RowSpacing="6">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
