@@ -35,6 +35,7 @@
 - 背景材质由 `BackdropFactory` 统一解析：Windows 11 使用 Mica（Base），可选亚克力；Windows 10、高对比度或材质不可用时退回纯色表面。
 - 置顶按钮位于自绘标题栏内，是最小化按钮左侧紧邻的第 4 个按钮（46×32 DIP、零间隙），按 `AppWindow.TitleBar.RightInset` 动态让出系统最小化 / 最大化 / 关闭按钮区域，悬停与按下底色和系统按钮一致。
 - 设置窗口与归档窗口共用标题栏结构（图标 + 标题 + 副标题）、材质、卡片样式与页脚布局；设置页页脚显示版本号。窗口尺寸按窗口 DPI 换算（`GetDpiForWindow`），并在高度超过显示器可用区域时截断为滚动内容，保证页脚按钮始终可达。两个窗口都可最大化、自由缩放，最小尺寸为归档窗口 420×460 DIP、设置窗口 460×560 DIP；最大化后内容拉伸到 860 DIP 的阅读宽度并居中；保存按钮旁的校验提示固定在页脚，不会被滚动内容遮住。
+- 主操作按钮（`AccentButtonStyle`：归档、保存设置）使用自绘模板常驻强调色：悬停不改变外观，按下叠一层 14% 黑色遮罩加深，禁用态引用系统的 `ButtonBackgroundDisabled` / `ButtonForegroundDisabled` 保持中性灰；文字色走 `AppOnAccentBrush`（浅色主题白字、深色主题深棕字）。不依赖系统强调色，也不会随系统主题或强调色变化。
 - 托盘菜单不再依赖 `H.NotifyIcon` 的 XAML 菜单：`TrayMenu` 自建 `WS_POPUP` 宿主窗口 + Win32 `TrackPopupMenuEx`，右键后按返回值分发命令。选中项立即执行；未设置目标目录时“打开目标目录”置灰。
 - 全局快捷键由 `GlobalHotkey` 在 message-only 窗口上 `RegisterHotKey`，收到 `WM_HOTKEY` 后把归档窗口提到前台并聚焦单号框。不使用全局键盘钩子，因此不会吞掉其它程序的空格 / 回车；组合被占用时返回错误码 1409 并在设置页提示。
 - 程序图标由 `tools/IconGen`（`System.Drawing`）逐档绘制 16–256 px 生成 `.ico`（<128 存 32bpp DIB，≥128 存 PNG），exe、窗口、任务栏、托盘与标题栏徽标共用同一套图形。
