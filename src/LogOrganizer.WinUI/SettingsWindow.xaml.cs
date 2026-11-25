@@ -59,7 +59,6 @@ public sealed partial class SettingsWindow : Window
         InboxRootBox.Text = current.InboxRoot;
         InboxNameBox.Text = current.InboxFolderName;
         TargetBox.Text = current.TargetRoot ?? string.Empty;
-        QuietSecondsBox.Value = current.QuietSeconds;
         StartupBox.IsChecked = current.StartWithWindows;
         HotkeyBox.IsChecked = current.WakeHotkeyEnabled;
         PinnedBox.IsChecked = current.PanelPinned;
@@ -366,7 +365,6 @@ public sealed partial class SettingsWindow : Window
             InboxRoot = root,
             InboxFolderName = folderName,
             TargetRoot = target.Length == 0 ? null : target,
-            QuietSeconds = (int)Math.Clamp(QuietSecondsBox.Value, AppSettings.MinQuietSeconds, AppSettings.MaxQuietSeconds),
             StartWithWindows = StartupBox.IsChecked == true,
             WakeHotkeyEnabled = hotkeyEnabled,
             WakeHotkey = _hotkey.ToString(),

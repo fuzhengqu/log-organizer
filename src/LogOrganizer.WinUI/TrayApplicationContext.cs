@@ -13,7 +13,6 @@ internal sealed class TrayApplicationContext : IDisposable
 
     private readonly App _app;
     private readonly SettingsStore _store = new();
-    private readonly DispatcherQueueTimer _pollTimer;
     private readonly DispatcherQueueTimer _saveTimer;
     private readonly Dictionary<string, string> _itemErrors = new(StringComparer.OrdinalIgnoreCase);
     private InboxWatcher? _watcher;
@@ -21,17 +20,16 @@ internal sealed class TrayApplicationContext : IDisposable
     private GlobalHotkey? _hotkey;
     private AppSettings _settings;
     private bool _disposed;
-    private bool _paused;
     private bool _savePending;
+    private volatile bool _primingWatcher;
+    private int _lastPendingCount;
+    private long _lastFlashTicks;
 
     public TrayApplicationContext(App app)
     {
         _app = app;
         _settings = _store.Load();
         var queue = DispatcherQueue.GetForCurrentThread();
-        _pollTimer = queue.CreateTimer();
-        _pollTimer.Interval = TimeSpan.FromMilliseconds(250);
-        _pollTimer.Tick += OnPollTick;
 
         // Dragging a window edge raises DidSizeChange dozens of times a second; write once it settles.
         _saveTimer = queue.CreateTimer();
@@ -42,11 +40,9 @@ internal sealed class TrayApplicationContext : IDisposable
 
     public AppSettings Settings => _settings;
     public bool IsPinned => _settings.PanelPinned;
-    public bool IsPaused => _paused;
     public bool HasTarget => _settings.HasTarget && Directory.Exists(_settings.TargetRoot);
 
     public event EventHandler? PendingChanged;
-    public event EventHandler? QuietActivity;
 
     public void Start()
     {
@@ -64,8 +60,6 @@ internal sealed class TrayApplicationContext : IDisposable
         {
             _window.ShowStatusMessage(hotkeyError, isError: true);
         }
-
-        _pollTimer.Start();
     }
 
     public IReadOnlyList<PendingItem> GetPendingItems() => _watcher?.SnapshotPending()
@@ -99,26 +93,12 @@ internal sealed class TrayApplicationContext : IDisposable
 
     public void SetPinned(bool pinned)
     {
-        if (_paused)
-        {
-            return;
-        }
-
         if (_settings.PanelPinned == pinned)
         {
             return;
         }
 
         _settings.PanelPinned = pinned;
-        if (pinned)
-        {
-            _watcher?.ResetQuietPeriod();
-        }
-        else
-        {
-            _watcher?.ResumeQuietPeriod();
-        }
-
         SaveSettings();
         _window?.RefreshPending();
     }
@@ -144,7 +124,6 @@ internal sealed class TrayApplicationContext : IDisposable
     public string? ApplySettings(AppSettings updated)
     {
         _settings = SettingsStore.Normalize(updated);
-        _paused = false;
         _itemErrors.Clear();
         StartWatcher();
         ApplyStartupRegistration();
@@ -191,25 +170,6 @@ internal sealed class TrayApplicationContext : IDisposable
     }
 
     private void OnHotkeyPressed() => _window?.FocusTicketBox();
-
-    public void TogglePause()
-    {
-        _paused = !_paused;
-        if (_paused)
-        {
-            _watcher?.Pause();
-        }
-        else
-        {
-            _watcher?.Resume();
-            if (IsPinned)
-            {
-                _watcher?.ResetQuietPeriod();
-            }
-        }
-
-        _window?.RefreshPending();
-    }
 
     public void OpenFolder(string? path)
     {
@@ -270,14 +230,27 @@ internal sealed class TrayApplicationContext : IDisposable
     private void StartWatcher()
     {
         _watcher?.Dispose();
+        _watcher = null;
         try
         {
-            var watcher = new InboxWatcher(_settings.InboxPath, _settings.QuietPeriod);
-            watcher.PendingChanged += OnWatcherPendingChanged;
-            watcher.ActivityRecorded += OnWatcherActivityRecorded;
-            watcher.Failed += (_, ex) => NotifyWatcherFailure(ex);
-            watcher.Start(suspendQuietPeriod: _settings.PanelPinned);
+            var watcher = new InboxWatcher(_settings.InboxPath);
             _watcher = watcher;
+            watcher.PendingChanged += OnWatcherPendingChanged;
+            watcher.Failed += (_, ex) => NotifyWatcherFailure(ex);
+
+            // The initial rescan reports whatever is already in the inbox. That is a state, not
+            // something new that just arrived, so it must not flash the taskbar.
+            _primingWatcher = true;
+            try
+            {
+                watcher.Start();
+            }
+            finally
+            {
+                _primingWatcher = false;
+            }
+
+            _lastPendingCount = watcher.SnapshotPending().Count;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
@@ -286,21 +259,56 @@ internal sealed class TrayApplicationContext : IDisposable
         }
     }
 
-    private void OnWatcherPendingChanged(object? sender, EventArgs e) => PendingChanged?.Invoke(this, EventArgs.Empty);
-    private void OnWatcherActivityRecorded(object? sender, EventArgs e) => QuietActivity?.Invoke(this, EventArgs.Empty);
-
-    private void OnPollTick(DispatcherQueueTimer sender, object args)
+    private void OnWatcherPendingChanged(object? sender, EventArgs e)
     {
-        if (_disposed || _paused || IsPinned || _watcher is null)
+        PendingChanged?.Invoke(this, EventArgs.Empty);
+
+        var count = _watcher?.SnapshotPending().Count ?? 0;
+        var grew = count > _lastPendingCount;
+        _lastPendingCount = count;
+        if (grew && !_primingWatcher)
+        {
+            FlashForNewItems(count);
+        }
+    }
+
+    /// <summary>
+    /// Reminds the user that something new is waiting without taking focus away from the program
+    /// they are working in: the taskbar button flashes and the window stays where it is.
+    /// </summary>
+    private void FlashForNewItems(int count)
+    {
+        if (_disposed || _window is null)
         {
             return;
         }
 
-        if (_watcher.TryTakeReadyBatch(out _))
+        // This runs on a watcher thread, and every Window call has to be made on the UI thread.
+        var window = _window;
+        window.DispatcherQueue.TryEnqueue(() =>
         {
-            ShowWindow();
-            _window?.ShowArchiveReady();
-        }
+            if (_disposed)
+            {
+                return;
+            }
+
+            // A copy raises Created plus a burst of Changed events; coalesce the lot into one flash.
+            var now = Environment.TickCount64;
+            if (now - _lastFlashTicks < 2000)
+            {
+                return;
+            }
+
+            _lastFlashTicks = now;
+            if (!window.Visible)
+            {
+                // A hidden window has no taskbar button to flash; show it without activating.
+                window.AppWindow.Show(activateWindow: false);
+            }
+
+            NativeMethods.FlashTaskbar(WindowNative.GetWindowHandle(window));
+            window.ShowNewItemsNotice(count);
+        });
     }
 
     private ConflictDecision ResolveConflict(ConflictRequest request) =>
@@ -351,8 +359,6 @@ internal sealed class TrayApplicationContext : IDisposable
         }
 
         _disposed = true;
-        _pollTimer.Stop();
-        _pollTimer.Tick -= OnPollTick;
         _saveTimer.Stop();
         _saveTimer.Tick -= OnSaveTick;
         if (_savePending)

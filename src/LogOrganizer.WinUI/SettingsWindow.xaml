@@ -73,11 +73,6 @@
                 <Border Style="{StaticResource AppCardStyle}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="行为" Style="{StaticResource AppSectionTitleStyle}" />
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="静默等待秒数（文件停止变化后等待多久再提示）" Style="{StaticResource AppFieldLabelStyle}" />
-                            <NumberBox x:Name="QuietSecondsBox" Minimum="1" Maximum="600"
-                                       SpinButtonPlacementMode="Inline" HorizontalAlignment="Stretch" />
-                        </StackPanel>
                         <CheckBox x:Name="StartupBox" Content="开机自动启动（默认关闭）" />
                         <StackPanel Spacing="4">
                             <CheckBox x:Name="HotkeyBox" Content="启用全局快捷键唤醒（默认关闭）"
@@ -96,7 +91,7 @@
                             <TextBlock x:Name="HotkeyHint" FontSize="10" TextWrapping="Wrap"
                                        Foreground="{ThemeResource AppMutedBrush}" />
                         </StackPanel>
-                        <CheckBox x:Name="PinnedBox" Content="启动时置顶显示；取消置顶后恢复静默期提示" />
+                        <CheckBox x:Name="PinnedBox" Content="启动时置顶显示" />
                     </StackPanel>
                 </Border>
 

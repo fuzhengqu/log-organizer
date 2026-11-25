@@ -1,11 +1,16 @@
 namespace LogOrganizer.Core;
 
 /// <summary>
-/// Observes the inbox and exposes the pending top-level files and folders once the
-/// quiet period expires. It never mutates the inbox; archiving owns all file moves.
+/// Observes the inbox and tracks the pending top-level files and folders. Entries appear as soon
+/// as they exist; there is no quiet period, because archiving only ever happens on an explicit
+/// click. It never mutates the inbox; archiving owns all file moves.
 /// </summary>
 public sealed class InboxWatcher : IDisposable
 {
+    /// <summary>
+    /// Partial download and editor lock files are not finished yet, so they are never offered for
+    /// archiving. This is a name filter, not a timer: a normal file shows up the moment it lands.
+    /// </summary>
     private static readonly string[] IgnoredSuffixes =
     {
         ".crdownload",
@@ -19,14 +24,10 @@ public sealed class InboxWatcher : IDisposable
 
     private readonly object _gate = new();
     private readonly HashSet<string> _pending = new(StringComparer.OrdinalIgnoreCase);
-    private readonly QuietPeriod _quietPeriod;
-    private readonly Func<DateTimeOffset> _clock;
-    private readonly object _quietGate = new();
-    private TimeSpan? _pausedQuietRemaining;
     private readonly FileSystemWatcher _watcher;
     private bool _disposed;
 
-    public InboxWatcher(string inboxPath, TimeSpan quietPeriod, Func<DateTimeOffset>? clock = null)
+    public InboxWatcher(string inboxPath)
     {
         if (string.IsNullOrWhiteSpace(inboxPath))
         {
@@ -34,8 +35,6 @@ public sealed class InboxWatcher : IDisposable
         }
 
         InboxPath = Path.GetFullPath(inboxPath);
-        _quietPeriod = new QuietPeriod(quietPeriod);
-        _clock = clock ?? (static () => DateTimeOffset.UtcNow);
 
         // The inbox is created on first run; FileSystemWatcher refuses to attach to a
         // missing directory, so the folder must exist before the watcher is constructed.
@@ -63,96 +62,17 @@ public sealed class InboxWatcher : IDisposable
 
     public bool IsRunning => _watcher.EnableRaisingEvents;
 
-    public bool IsPaused { get; private set; }
-
     /// <summary>Raised when the pending set changes. Raised on a watcher thread.</summary>
     public event EventHandler? PendingChanged;
-
-    /// <summary>Raised when non-ignored inbox activity restarts the quiet period.</summary>
-    public event EventHandler? ActivityRecorded;
 
     /// <summary>Raised when the underlying watcher reports an error, for example a buffer overflow.</summary>
     public event EventHandler<Exception>? Failed;
 
-    public void Start(bool suspendQuietPeriod = false)
+    public void Start()
     {
-        Directory.CreateDirectory(InboxPath);
-        IsPaused = false;
-        _watcher.EnableRaisingEvents = true;
-        Rescan();
-        if (suspendQuietPeriod)
-        {
-            ResetQuietPeriod();
-        }
-    }
-
-    public void Pause()
-    {
-        IsPaused = true;
-        _watcher.EnableRaisingEvents = false;
-    }
-
-    public void Resume()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        IsPaused = false;
         Directory.CreateDirectory(InboxPath);
         _watcher.EnableRaisingEvents = true;
         Rescan();
-    }
-
-    /// <summary>Records activity now, restarting the quiet period.</summary>
-    public void MarkActivity() => RecordQuietActivity();
-
-    private void RecordQuietActivity()
-    {
-        ActivityRecorded?.Invoke(this, EventArgs.Empty);
-
-        lock (_quietGate)
-        {
-            if (_pausedQuietRemaining is not null)
-            {
-                _pausedQuietRemaining = _quietPeriod.Delay;
-            }
-            else
-            {
-                _quietPeriod.RecordChange(_clock());
-            }
-        }
-    }
-
-    /// <summary>Freezes the current quiet period while the manual drop panel is active.</summary>
-    public void ResetQuietPeriod()
-    {
-        lock (_quietGate)
-        {
-            if (_pausedQuietRemaining is not null)
-            {
-                return;
-            }
-
-            _pausedQuietRemaining = _quietPeriod.DueAt is { } due
-                ? due - _clock()
-                : TimeSpan.Zero;
-            _quietPeriod.Reset();
-        }
-    }
-
-    /// <summary>Resumes automatic prompting with the quiet period preserved across panel mode.</summary>
-    public void ResumeQuietPeriod()
-    {
-        lock (_quietGate)
-        {
-            if (_pausedQuietRemaining is { } remaining)
-            {
-                _quietPeriod.RecordChange(_clock() - (_quietPeriod.Delay - remaining));
-                _pausedQuietRemaining = null;
-            }
-        }
     }
 
     /// <summary>Re-reads the inbox so pre-existing or missed entries become pending.</summary>
@@ -188,8 +108,6 @@ public sealed class InboxWatcher : IDisposable
             return;
         }
 
-        RecordQuietActivity();
-
         if (added)
         {
             PendingChanged?.Invoke(this, EventArgs.Empty);
@@ -207,32 +125,7 @@ public sealed class InboxWatcher : IDisposable
         }
     }
 
-    /// <summary>
-    /// Returns the pending batch once the quiet period elapsed. Each batch is emitted at
-    /// most once; pending entries stay tracked until the caller removes them.
-    /// </summary>
-    public bool TryTakeReadyBatch(out IReadOnlyList<string> batch)
-    {
-        batch = Array.Empty<string>();
-
-        if (_disposed || IsPaused || !_quietPeriod.IsDue(_clock()))
-        {
-            return false;
-        }
-
-        _quietPeriod.Reset();
-
-        var items = SnapshotPending();
-        if (items.Count == 0)
-        {
-            return false;
-        }
-
-        batch = items;
-        return true;
-    }
-
-    /// <summary>Removes entries that were archived, skipped by the user, or no longer exist.</summary>
+    /// <summary>Tracks a path that did not come from the inbox, for example a dropped file.</summary>
     public void AddPending(string path)
     {
         if (_disposed || string.IsNullOrWhiteSpace(path))
@@ -267,6 +160,7 @@ public sealed class InboxWatcher : IDisposable
         }
     }
 
+    /// <summary>Removes entries that were archived, skipped by the user, or no longer exist.</summary>
     public void RemovePending(IEnumerable<string> paths)
     {
         var removed = false;
@@ -298,7 +192,7 @@ public sealed class InboxWatcher : IDisposable
 
     private void OnCreatedOrChanged(object sender, FileSystemEventArgs e)
     {
-        if (_disposed || IsPaused)
+        if (_disposed)
         {
             return;
         }
@@ -314,8 +208,6 @@ public sealed class InboxWatcher : IDisposable
         {
             added = _pending.Add(topLevel);
         }
-
-        RecordQuietActivity();
 
         if (added)
         {

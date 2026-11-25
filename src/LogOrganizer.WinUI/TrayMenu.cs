@@ -17,7 +17,6 @@ internal sealed class TrayMenu : IDisposable
     private const int IdSettings = 2;
     private const int IdOpenInbox = 3;
     private const int IdOpenTarget = 4;
-    private const int IdTogglePause = 5;
     private const int IdExit = 6;
 
     private const uint MfString = 0x00000000;
@@ -40,7 +39,6 @@ internal sealed class TrayMenu : IDisposable
     private readonly Action _openSettings;
     private readonly Action _openInbox;
     private readonly Action _openTarget;
-    private readonly Action _togglePause;
     private readonly Action _exit;
 
     /// <summary>
@@ -55,7 +53,6 @@ internal sealed class TrayMenu : IDisposable
         Action openSettings,
         Action openInbox,
         Action openTarget,
-        Action togglePause,
         Action exit,
         IntPtr host)
     {
@@ -63,7 +60,6 @@ internal sealed class TrayMenu : IDisposable
         _openSettings = openSettings;
         _openInbox = openInbox;
         _openTarget = openTarget;
-        _togglePause = togglePause;
         _exit = exit;
         _host = host;
     }
@@ -74,7 +70,6 @@ internal sealed class TrayMenu : IDisposable
         Action openSettings,
         Action openInbox,
         Action openTarget,
-        Action togglePause,
         Action exit,
         out string? error)
     {
@@ -94,14 +89,14 @@ internal sealed class TrayMenu : IDisposable
             return null;
         }
 
-        return new TrayMenu(toggleWindow, openSettings, openInbox, openTarget, togglePause, exit, host);
+        return new TrayMenu(toggleWindow, openSettings, openInbox, openTarget, exit, host);
     }
 
     /// <summary>
     /// Opens the menu at a screen position and runs the chosen item. Blocks until the menu closes,
     /// which is how Win32 menus work; the caller must already be on the UI thread.
     /// </summary>
-    public void Show(bool windowVisible, bool paused, bool hasTarget, int x, int y)
+    public void Show(bool windowVisible, bool hasTarget, int x, int y)
     {
         if (_host == IntPtr.Zero)
         {
@@ -121,7 +116,6 @@ internal sealed class TrayMenu : IDisposable
             AppendItem(menu, IdOpenInbox, "打开中转目录");
             AppendItem(menu, IdOpenTarget, "打开目标目录", hasTarget);
             NativeMethods.AppendMenu(menu, MfSeparator, 0, null);
-            AppendItem(menu, IdTogglePause, paused ? "继续监控" : "暂停监控");
             AppendItem(menu, IdExit, "退出");
 
             // Moving the owner onto the tray's monitor makes the menu scale with that display's DPI.
@@ -158,9 +152,6 @@ internal sealed class TrayMenu : IDisposable
                 break;
             case IdOpenTarget:
                 _openTarget();
-                break;
-            case IdTogglePause:
-                _togglePause();
                 break;
             case IdExit:
                 _exit();

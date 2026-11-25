@@ -33,9 +33,9 @@
                 <ToggleButton x:Name="AlwaysOnTopButton"
                               Style="{StaticResource CaptionToggleButtonStyle}"
                               HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,138,0"
-                              ToolTipService.ToolTip="取消置顶，恢复静默期归档提示"
+                              ToolTipService.ToolTip="置顶窗口（再次点击取消）"
                               AutomationProperties.Name="置顶归档窗口"
-                              Checked="OnAlwaysOnTopChanged" Unchecked="OnAlwaysOnTopChanged" />
+                              Click="OnAlwaysOnTopClick" />
             </Grid>
         </Border>
 
@@ -54,7 +54,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="2">
                     <TextBlock x:Name="PendingTitle" Text="待归档项目" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource AppTextBrush}" />
-                    <TextBlock x:Name="PendingSubtitle" Text="文件只会在点击归档后移动" FontSize="11" Foreground="{ThemeResource AppMutedBrush}" />
+                    <TextBlock x:Name="PendingSubtitle" Text="点击归档才会移动文件" FontSize="11" Foreground="{ThemeResource AppMutedBrush}" />
                 </StackPanel>
                 <Button Grid.Column="1" Content="添加文件" Click="OnAddFiles" VerticalAlignment="Center" />
             </Grid>

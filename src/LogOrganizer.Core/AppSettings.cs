@@ -8,9 +8,6 @@ public sealed class AppSettings
     public const string DefaultInboxRoot = @"D:\Downloads";
     public const string DefaultInboxFolderName = "_收件";
     public const string DefaultInboxPath = DefaultInboxRoot + @"\" + DefaultInboxFolderName;
-    public const int DefaultQuietSeconds = 10;
-    public const int MinQuietSeconds = 1;
-    public const int MaxQuietSeconds = 600;
     public const double DefaultPanelOpacity = 0.92;
     public const double MinPanelOpacity = 0.40;
 
@@ -25,8 +22,6 @@ public sealed class AppSettings
 
     /// <summary>Unset until the user configures one.</summary>
     public string? TargetRoot { get; set; }
-
-    public int QuietSeconds { get; set; } = DefaultQuietSeconds;
 
     /// <summary>Opt-in; disabled by default.</summary>
     public bool StartWithWindows { get; set; }
@@ -67,14 +62,11 @@ public sealed class AppSettings
     [JsonIgnore]
     public bool HasTarget => !string.IsNullOrWhiteSpace(TargetRoot);
 
-    public TimeSpan QuietPeriod => TimeSpan.FromSeconds(QuietSeconds);
-
     public AppSettings Clone() => new()
     {
         InboxRoot = InboxRoot,
         InboxFolderName = InboxFolderName,
         TargetRoot = TargetRoot,
-        QuietSeconds = QuietSeconds,
         StartWithWindows = StartWithWindows,
         WakeHotkeyEnabled = WakeHotkeyEnabled,
         WakeHotkey = WakeHotkey,

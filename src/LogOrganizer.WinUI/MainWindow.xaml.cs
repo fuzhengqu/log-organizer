@@ -21,10 +21,11 @@ public sealed partial class MainWindow : Window
     private readonly TrayApplicationContext _context;
     private bool _refreshing;
     private bool _busy;
-    private bool _showingQuietPrompt;
     private bool _shutdown;
     private System.Drawing.Icon? _trayIcon;
     private TrayMenu? _trayMenu;
+    private Windows.Graphics.RectInt32 _pinHitRect;
+    private bool _pinHitRectValid;
 
     public ICommand TrayDoubleClickCommand { get; } = new DelegateCommand(() =>
         ((App)Application.Current).ToggleWindow());
@@ -52,7 +53,6 @@ public sealed partial class MainWindow : Window
         TitleBar.Loaded += OnLoaded;
         Closed += OnClosed;
         _context.PendingChanged += OnPendingChanged;
-        _context.QuietActivity += OnQuietActivity;
         AlwaysOnTopButton.IsChecked = _context.IsPinned;
         RefreshPending();
         UpdateStatus();
@@ -113,7 +113,6 @@ public sealed partial class MainWindow : Window
             () => _ = OpenSettingsAsync(),
             () => _context.OpenFolder(_context.Settings.InboxPath),
             () => _context.OpenFolder(_context.Settings.TargetRoot),
-            _context.TogglePause,
             _context.Shutdown,
             out var error);
         if (_trayMenu is null)
@@ -136,7 +135,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _trayMenu.Show(Visible, _context.IsPaused, _context.HasTarget, point.X, point.Y);
+        _trayMenu.Show(Visible, _context.HasTarget, point.X, point.Y);
     }
 
     public void FocusTicketBox()
@@ -161,51 +160,14 @@ public sealed partial class MainWindow : Window
     public void ShowStatusMessage(string message, bool isError) =>
         DispatcherQueue.TryEnqueue(() => ShowStatus(message, isError));
 
-    public void ShowArchiveReady()
+    /// <summary>Called when a new file lands in the inbox; the taskbar flash itself is native.</summary>
+    public void ShowNewItemsNotice(int count) => DispatcherQueue.TryEnqueue(() =>
     {
-        if (!_context.IsPinned)
+        if (!_busy)
         {
-            ShowQuietPrompt();
+            ShowStatus($"检测到 {count} 个新文件，输入单号后点击归档。", isError: false);
         }
-    }
-
-    private void ShowQuietPrompt()
-    {
-        if (_context.IsPinned || _showingQuietPrompt || _shutdown)
-        {
-            return;
-        }
-
-        _showingQuietPrompt = true;
-        DispatcherQueue.TryEnqueue(async () =>
-        {
-            try
-            {
-                var dialog = new ContentDialog
-                {
-                    XamlRoot = Content.XamlRoot,
-                    Title = "项目已准备归档",
-                    Content = $"静默等待结束，当前有 {_context.GetPendingItems().Count} 个项目。输入问题单号后点击归档。",
-                    PrimaryButtonText = "填写单号",
-                    CloseButtonText = "稍后",
-                };
-                await dialog.ShowAsync();
-                if (!_context.IsPinned && !_shutdown)
-                {
-                    _context.ShowWindow();
-                    TicketBox.Focus(FocusState.Programmatic);
-                }
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
-            {
-                CrashLog.Write(ex, "显示静默期提示失败");
-            }
-            finally
-            {
-                _showingQuietPrompt = false;
-            }
-        });
-    }
+    });
 
     public ConflictDecision DispatchConflictDialog(ConflictRequest request)
     {
@@ -291,7 +253,6 @@ public sealed partial class MainWindow : Window
         AppWindow.Closing -= OnWindowClosing;
         AppWindow.Changed -= OnWindowChanged;
         _context.PendingChanged -= OnPendingChanged;
-        _context.QuietActivity -= OnQuietActivity;
         Close();
     }
 
@@ -309,7 +270,6 @@ public sealed partial class MainWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _context.PendingChanged -= OnPendingChanged;
-        _context.QuietActivity -= OnQuietActivity;
         _trayIcon?.Dispose();
         _trayIcon = null;
         if (!_shutdown)
@@ -324,6 +284,7 @@ public sealed partial class MainWindow : Window
         ApplyPinnedOpacity();
         ApplyBackdrop();
         UpdateTitleBarLayout();
+        RootSurface.SizeChanged += OnRootSurfaceSizeChanged;
         // Start in the ticket box instead of leaving focus on the title-bar pin button.
         TicketBox.Focus(FocusState.Programmatic);
         if (TitleBar.XamlRoot is not null)
@@ -336,6 +297,8 @@ public sealed partial class MainWindow : Window
     }
 
     private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateTitleBarLayout();
+
+    private void OnRootSurfaceSizeChanged(object sender, SizeChangedEventArgs e) => ReapplyPinHitTest();
 
     private void OnActualThemeChanged(FrameworkElement sender, object args)
     {
@@ -359,6 +322,42 @@ public sealed partial class MainWindow : Window
         AlwaysOnTopButton.Margin = new Thickness(0, 0, inset, 0);
         TitleBarHeader.Padding = new Thickness(
             20, 14, inset + WindowChrome.CaptionButtonWidthDip + 8, 14);
+        ReapplyPinHitTest();
+    }
+
+    /// <summary>
+    /// The pin lives inside the non-client title bar, so WinUI has to publish a passthrough region
+    /// for it. That bookkeeping is recomputed on window and layout changes and the pin silently
+    /// degrades to plain caption area when it is dropped: clicks do nothing and a small drag moves
+    /// the window. Re-asserting the region ourselves keeps the button clickable.
+    /// </summary>
+    private void ReapplyPinHitTest()
+    {
+        if (!ExtendsContentIntoTitleBar || RootSurface.XamlRoot is null || AlwaysOnTopButton.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        var scale = RootSurface.XamlRoot.RasterizationScale;
+        var bounds = AlwaysOnTopButton
+            .TransformToVisual(null)
+            .TransformBounds(new Windows.Foundation.Rect(0, 0, AlwaysOnTopButton.ActualWidth, AlwaysOnTopButton.ActualHeight));
+        var rect = new Windows.Graphics.RectInt32(
+            (int)Math.Round(bounds.X * scale),
+            (int)Math.Round(bounds.Y * scale),
+            (int)Math.Round(bounds.Width * scale),
+            (int)Math.Round(bounds.Height * scale));
+
+        if (_pinHitRectValid && rect.Equals(_pinHitRect))
+        {
+            return;
+        }
+
+        _pinHitRect = rect;
+        _pinHitRectValid = true;
+        Microsoft.UI.Input.InputNonClientPointerSource
+            .GetForWindowId(AppWindow.Id)
+            .SetRegionRects(Microsoft.UI.Input.NonClientRegionKind.Passthrough, new[] { rect });
     }
 
     /// <summary>
@@ -391,18 +390,6 @@ public sealed partial class MainWindow : Window
 
     private void OnPendingChanged(object? sender, EventArgs e) => RefreshPending();
 
-    private void OnQuietActivity(object? sender, EventArgs e)
-    {
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            if (!_context.IsPinned)
-            {
-                StatusText.Text = $"检测到文件变化，静默等待 {_context.Settings.QuietSeconds} 秒…";
-                StatusText.Foreground = (Brush)Application.Current.Resources["AppMutedBrush"];
-            }
-        });
-    }
-
     private void RefreshPendingCore()
     {
         if (_refreshing || _busy)
@@ -420,9 +407,9 @@ public sealed partial class MainWindow : Window
             PendingTitle.Text = $"待归档项目 · {items.Count}";
             PendingSubtitle.Text = _context.IsPinned
                 ? "置顶模式 · 确认归档前不会移动文件"
-                : "静默期结束后提示，点击归档才会移动文件";
+                : "点击归档才会移动文件";
             ArchiveButton.IsEnabled = items.Count > 0 && TicketNumber.TryParse(TicketBox.Text.Trim(), out _)
-                && _context.HasTarget && !_context.IsPaused;
+                && _context.HasTarget;
             UpdateStatus();
         }
         finally
@@ -578,7 +565,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowStatus($"归档失败：{ex.Message}", isError: true);
+            ShowStatus(DescribeArchiveFailure(ex), isError: true);
         }
         finally
         {
@@ -588,21 +575,26 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnAlwaysOnTopChanged(object sender, RoutedEventArgs e)
+    /// <summary>Moving a file that is still being written fails with a sharing violation; say so plainly.</summary>
+    private static string DescribeArchiveFailure(Exception exception)
     {
-        if (_context.IsPaused)
-        {
-            AlwaysOnTopButton.IsChecked = _context.IsPinned;
-            ShowStatus("监控已暂停，请先恢复监控再切换置顶模式。", isError: true);
-            return;
-        }
+        const int SharingViolation = unchecked((int)0x80070020);
+        const int LockViolation = unchecked((int)0x80070021);
+        return exception is IOException && (exception.HResult == SharingViolation || exception.HResult == LockViolation)
+            ? "文件仍在使用中，请等复制完成后再点击归档。"
+            : $"归档失败：{exception.Message}";
+    }
 
-        var pinned = AlwaysOnTopButton.IsChecked == true;
+    private void OnAlwaysOnTopClick(object sender, RoutedEventArgs e)
+    {
+        // The target state comes from the app, not from the toggle: one writer, no event ping-pong.
+        var pinned = !_context.IsPinned;
         _context.SetPinned(pinned);
+        AlwaysOnTopButton.IsChecked = pinned;
         ((OverlappedPresenter)AppWindow.Presenter).IsAlwaysOnTop = pinned;
-        ToolTipService.SetToolTip(AlwaysOnTopButton, pinned ? "取消置顶，恢复静默期归档提示" : "置顶窗口并停用静默期弹窗");
-        PendingSubtitle.Text = pinned ? "置顶模式 · 确认归档前不会移动文件" : "静默期结束后提示，点击归档才会移动文件";
+        PendingSubtitle.Text = pinned ? "置顶模式 · 确认归档前不会移动文件" : "点击归档才会移动文件";
         ApplyPinnedOpacity();
+        ReapplyPinHitTest();
         RefreshPendingCore();
     }
 
@@ -642,11 +634,7 @@ public sealed partial class MainWindow : Window
 
     private void UpdateStatus()
     {
-        if (_context.IsPaused)
-        {
-            ShowStatus("监控已暂停 · 项目不会自动归档", isError: false);
-        }
-        else if (!_context.HasTarget)
+        if (!_context.HasTarget)
         {
             ShowStatus("请先在设置中选择目标目录。", isError: true);
         }
@@ -654,7 +642,7 @@ public sealed partial class MainWindow : Window
         {
             StatusText.Text = _context.IsPinned
                 ? "置顶待命 · 文件只会在点击归档后移动"
-                : $"监控中 · 静默期 {_context.Settings.QuietSeconds} 秒";
+                : "监控中 · 有新文件时任务栏图标会闪烁";
             StatusText.Foreground = (Brush)Application.Current.Resources["AppMutedBrush"];
         }
 

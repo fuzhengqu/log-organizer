@@ -25,7 +25,6 @@ public sealed class SettingsStoreTests
         Assert.AreEqual(AppSettings.DefaultInboxFolderName, settings.InboxFolderName);
         Assert.AreEqual(AppSettings.DefaultInboxPath, settings.InboxPath);
         Assert.IsNull(settings.TargetRoot);
-        Assert.AreEqual(10, settings.QuietSeconds);
         Assert.IsFalse(settings.StartWithWindows);
         Assert.IsFalse(settings.WakeHotkeyEnabled);
         Assert.AreEqual(HotkeyGesture.DefaultText, settings.WakeHotkey);
@@ -47,7 +46,6 @@ public sealed class SettingsStoreTests
             InboxRoot = @"E:\Inbox",
             InboxFolderName = "_tickets",
             TargetRoot = @"E:\Archive",
-            QuietSeconds = 25,
             StartWithWindows = true,
             WakeHotkeyEnabled = true,
             WakeHotkey = "Ctrl+Alt+K",
@@ -66,7 +64,6 @@ public sealed class SettingsStoreTests
         Assert.AreEqual("_tickets", loaded.InboxFolderName);
         Assert.AreEqual(@"E:\Inbox\_tickets", loaded.InboxPath);
         Assert.AreEqual(@"E:\Archive", loaded.TargetRoot);
-        Assert.AreEqual(25, loaded.QuietSeconds);
         Assert.IsTrue(loaded.StartWithWindows);
         Assert.IsTrue(loaded.WakeHotkeyEnabled);
         Assert.AreEqual("Ctrl+Alt+K", loaded.WakeHotkey);
@@ -185,7 +182,6 @@ public sealed class SettingsStoreTests
         var settings = _store.Load();
 
         Assert.AreEqual(AppSettings.DefaultInboxPath, settings.InboxPath);
-        Assert.AreEqual(AppSettings.DefaultQuietSeconds, settings.QuietSeconds);
     }
 
     [TestMethod]
@@ -198,8 +194,7 @@ public sealed class SettingsStoreTests
             {
               "InboxRoot": "   ",
               "InboxFolderName": "..\\escape",
-              "TargetRoot": "",
-              "QuietSeconds": 100000
+              "TargetRoot": ""
             }
             """);
 
@@ -208,15 +203,24 @@ public sealed class SettingsStoreTests
         Assert.AreEqual(AppSettings.DefaultInboxRoot, settings.InboxRoot);
         Assert.AreEqual(AppSettings.DefaultInboxFolderName, settings.InboxFolderName);
         Assert.IsNull(settings.TargetRoot);
-        Assert.AreEqual(AppSettings.MaxQuietSeconds, settings.QuietSeconds);
     }
 
     [TestMethod]
-    public void QuietSecondsBelowMinimum_IsRaised()
+    public void LegacyQuietSecondsKey_IsIgnored()
     {
-        var settings = SettingsStore.Normalize(new AppSettings { QuietSeconds = 0 });
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(
+            Path.Combine(_root, "config.json"),
+            """
+            {
+              "InboxRoot": "D:\\Downloads",
+              "QuietSeconds": 42
+            }
+            """);
 
-        Assert.AreEqual(AppSettings.MinQuietSeconds, settings.QuietSeconds);
+        var settings = _store.Load();
+
+        Assert.AreEqual(AppSettings.DefaultInboxPath, settings.InboxPath);
     }
 
     [TestMethod]

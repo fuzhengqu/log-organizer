@@ -102,6 +102,45 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern int GetSystemMetrics(int index);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FlashWindowInfo
+    {
+        public uint Size;
+        public IntPtr Window;
+        public uint Flags;
+        public uint Count;
+        public uint Timeout;
+    }
+
+    private const uint FlashwTray = 0x00000002;
+    private const uint FlashwTimerNoForeground = 0x0000000C;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FlashWindowEx(ref FlashWindowInfo info);
+
+    /// <summary>
+    /// Flashes the taskbar button until the window becomes foreground. Used to announce a new
+    /// pending item without stealing focus from whatever the user is typing in.
+    /// </summary>
+    internal static void FlashTaskbar(IntPtr window)
+    {
+        if (window == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var info = new FlashWindowInfo
+        {
+            Size = (uint)Marshal.SizeOf<FlashWindowInfo>(),
+            Window = window,
+            Flags = FlashwTray | FlashwTimerNoForeground,
+            Count = uint.MaxValue,
+            Timeout = 0,
+        };
+        FlashWindowEx(ref info);
+    }
+
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetCursorPos(out Point point);

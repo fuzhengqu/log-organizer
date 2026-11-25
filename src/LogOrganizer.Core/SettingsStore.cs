@@ -148,15 +148,6 @@ public sealed class SettingsStore
         normalized.InboxRoot = normalized.InboxRoot!.Trim();
         normalized.InboxFolderName = normalized.InboxFolderName!.Trim();
 
-        if (normalized.QuietSeconds < AppSettings.MinQuietSeconds)
-        {
-            normalized.QuietSeconds = AppSettings.MinQuietSeconds;
-        }
-        else if (normalized.QuietSeconds > AppSettings.MaxQuietSeconds)
-        {
-            normalized.QuietSeconds = AppSettings.MaxQuietSeconds;
-        }
-
         if (string.IsNullOrWhiteSpace(normalized.TargetRoot) || !IsValidPath(normalized.TargetRoot))
         {
             normalized.TargetRoot = null;
