@@ -6,7 +6,7 @@
 
 ```powershell
 # 1. 改版本号
-#    Directory.Build.props: <Version>0.03</Version>
+#    Directory.Build.props: <Version>0.04</Version>
 
 # 2. 全量构建 + 测试
 dotnet build LogOrganizer.sln -c Release -p:Platform=x64
@@ -28,7 +28,7 @@ tests\LogOrganizer.Core.Tests\bin\Release\net10.0\LogOrganizer.Core.Tests.exe
 | `LogOrganizer-<版本>-win-arm64.exe` | 同上（ARM64） |
 | `SHA256SUMS.txt` | 上面四项的 SHA-256 |
 
-参数：`-SkipArm64` / `-SkipX64` 只打一个架构，`-SkipRedist` 不下载运行库，`-Version 0.03` 覆盖版本号，`-RedistDir` 指定运行库缓存目录。
+参数：`-SkipArm64` / `-SkipX64` 只打一个架构，`-SkipRedist` 不下载运行库，`-Version 0.04` 覆盖版本号，`-RedistDir` 指定运行库缓存目录。
 
 ## 二、走 CI 打一个版本
 
@@ -39,8 +39,8 @@ tests\LogOrganizer.Core.Tests\bin\Release\net10.0\LogOrganizer.Core.Tests.exe
 3. 用 `GITHUB_TOKEN` 创建或更新对应 Release，附上四个文件与 `SHA256SUMS.txt`。
 
 ```powershell
-git tag v0.03
-git push origin v0.03
+git tag v0.04
+git push origin v0.04
 ```
 
 `build.yml` 在每次 push 到 `main` 与 PR 时跑构建、单元测试和两个架构的发布，产物作为 Actions artifact 保存。
@@ -65,12 +65,14 @@ git push origin v0.03
 
 - [ ] `LICENSE`、`SECURITY.md`、`PRIVACY.md`、`THIRD-PARTY-NOTICES.md` 存在且日期/版本正确。
 - [ ] `CHANGELOG.md` 有本次条目，版本号与 tag 一致。
-- [ ] 单元测试全绿（当前 73 个）。
+- [ ] 单元测试全绿（当前 63 个）。
 - [ ] `dotnet list LogOrganizer.sln package --include-transitive --vulnerable` 无输出告警。
 - [ ] 仓库里没有本机路径、个人邮箱、企业信息（见 `docs/security-audit.md`）。
 - [ ] 两个 zip 解压后都能看到 `LogOrganizer.exe`、`VC_redist.*.exe`、`使用说明.txt`。
 - [ ] `SHA256SUMS.txt` 与附件实际哈希一致（`certutil -hashfile <文件> SHA256`）。
 - [ ] Release 说明写清：x64 已实机验证 / ARM64 待实机验证、需要 VC++ 运行库、未签名会触发 SmartScreen。
 - [ ] 发布说明写在该版本的 `docs/release-notes/<版本>.md`（去掉 `v`），`release.yml` 发现该文件就用它当正文；入库后随 tag 一起发布，别只在网页上手改。
-- [ ] 手工确认：托盘右键六项都能执行（含“打开目标目录”在未设置时置灰）、两个窗口的最大化按钮可用且不能缩到最小尺寸以下、启用快捷键后按组合键能唤醒并聚焦单号框、组合被占用时设置页给出提示。
+- [ ] 手工确认：托盘右键五项都能执行（含“打开目标目录”在未设置时置灰）、两个窗口的最大化按钮可用且不能缩到最小尺寸以下、启用快捷键后按组合键能唤醒并聚焦单号框、组合被占用时设置页给出提示。
 - [ ] 手工确认：主操作按钮（“归档”“保存设置”）鼠标悬停时外观不变、按住时加深、禁用时中性灰；深色主题下文字为深棕。
+- [ ] 手工确认：图钉连点 10 次，每次都能切换置顶状态，窗口不会跟着鼠标位移。
+- [ ] 手工确认：新文件进入中转目录后立刻出现在列表、任务栏闪一下、窗口不自己升起；`.crdownload` 这类下载中的文件不进列表。
