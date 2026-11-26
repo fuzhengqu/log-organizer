@@ -15,7 +15,7 @@
 
 ## 二、扫描方法与结果
 
-扫描范围：工作树中除 `.git`、`bin`、`obj`、`publish`、`artifacts` 之外的全部文本文件（61 个），二进制与截图不参与匹配。
+扫描范围：工作树中除 `.git`、`bin`、`obj`、`publish`、`artifacts` 之外的全部文本文件（63 个），二进制与截图不参与匹配。
 
 密钥模式（正则，逐文件匹配）：通用 API key / client secret / bearer 长串 / 连接字符串 / 遥测 key / AWS access key / GitHub token / `sk-` 前缀 key / PEM 私钥头 / Slack token / 明文密码赋值。
 

@@ -6,7 +6,7 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 当前版本 | 0.05 |
+| 当前版本 | 0.06 |
 | 许可证 | GNU GPL v3（`GPL-3.0-only`） |
 | 系统要求 | Windows 10 版本 1809（17763）或更高、Windows 11；x64 或 arm64 |
 | 运行时依赖 | 不需要安装 .NET；需要 Microsoft Visual C++ 2015-2022 运行库 |
@@ -90,7 +90,7 @@
 
 - 配置：`%APPDATA%\log-organizer\config.json`。旧目录 `%APPDATA%\ticket-file-organizer` 会被自动迁移一次，旧的开机自启项也会清理。
 - 崩溃日志：`%LOCALAPPDATA%\LogOrganizer\crash.log`。
-- 版本号规则：每处发布 +0.01（`0.01 → 0.02 → 0.03 → 0.04 → 0.05`），不做跨版本跳跃；重大缺陷或重大功能才允许改变 `0.0x` 之前的数字，并在 `CHANGELOG.md` 说明理由。
+- 版本号规则：每处发布 +0.01（`0.01 → 0.02 → 0.03 → 0.04 → 0.05 → 0.06`），不做跨版本跳跃；重大缺陷或重大功能才允许改变 `0.0x` 之前的数字，并在 `CHANGELOG.md` 说明理由。
 - 版本号只有一个来源：根目录 `Directory.Build.props` 的 `<Version>`。
 
 ## 八、构建
@@ -101,7 +101,7 @@
 # 构建（x64）
 dotnet build LogOrganizer.sln -c Release -p:Platform=x64
 
-# 运行核心单元测试（61 个用例）
+# 运行核心单元测试（63 个用例）
 dotnet test LogOrganizer.sln -c Release -p:Platform=x64
 # 或者直接跑测试可执行文件（等价，且不依赖测试宿主）
 tests\LogOrganizer.Core.Tests\bin\Release\net10.0\LogOrganizer.Core.Tests.exe
