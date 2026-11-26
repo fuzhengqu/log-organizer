@@ -1,132 +1,13 @@
 namespace LogOrganizer.Core;
 
 /// <summary>
-/// Moves inbox items into a numeric ticket folder. It never deletes source items silently:
-/// a move only completes once the destination copy is verified, and collisions require an
-/// explicit decision from the supplied resolver.
+/// Moves explicitly listed items into a numeric ticket folder. It never deletes source items
+/// silently: a move only completes once the destination copy is verified, and collisions require
+/// an explicit decision from the supplied resolver. There is no "archive the whole inbox" entry
+/// point, so an item can only ever move when the user put it in the list.
 /// </summary>
 public static class ArchiveService
 {
-    public static Task<ArchiveResult> ArchiveAsync(
-        string inboxPath,
-        string targetRoot,
-        string ticketNumber,
-        IReadOnlyList<string> items,
-        ConflictResolver conflictResolver,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(conflictResolver);
-
-        return Task.Run(
-            () => Archive(inboxPath, targetRoot, ticketNumber, items, conflictResolver, cancellationToken),
-            cancellationToken);
-    }
-
-    public static ArchiveResult Archive(
-        string inboxPath,
-        string targetRoot,
-        string ticketNumber,
-        IReadOnlyList<string> items,
-        ConflictResolver conflictResolver,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(conflictResolver);
-
-        if (!TicketNumber.TryParse(ticketNumber, out var ticket))
-        {
-            return ArchiveResult.Failure("问题单号只能包含数字。");
-        }
-
-        if (string.IsNullOrWhiteSpace(inboxPath))
-        {
-            return ArchiveResult.Failure("尚未设置中转目录。");
-        }
-
-        string inbox;
-        try
-        {
-            inbox = Path.GetFullPath(inboxPath);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return ArchiveResult.Failure($"中转目录路径无效：{ex.Message}");
-        }
-
-        if (!Directory.Exists(inbox))
-        {
-            return ArchiveResult.Failure($"中转目录不存在：{inbox}");
-        }
-
-        if (PathSafety.HasReparsePointInChain(inbox))
-        {
-            return ArchiveResult.Failure("中转目录路径包含符号链接或联接点，已拒绝归档。");
-        }
-
-        if (string.IsNullOrWhiteSpace(targetRoot))
-        {
-            return ArchiveResult.Failure("尚未设置目标目录，请先在设置中配置。");
-        }
-
-        string target;
-        try
-        {
-            target = Path.GetFullPath(targetRoot);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return ArchiveResult.Failure($"目标目录路径无效：{ex.Message}");
-        }
-
-        if (!Directory.Exists(target))
-        {
-            return ArchiveResult.Failure($"目标目录不存在：{target}");
-        }
-
-        if (PathSafety.HasReparsePointInChain(target))
-        {
-            return ArchiveResult.Failure("目标目录路径包含符号链接或联接点，已拒绝归档。");
-        }
-
-        var ticketFolder = Path.Combine(target, ticket);
-
-        var createdFolder = false;
-        if (!Directory.Exists(ticketFolder))
-        {
-            try
-            {
-                Directory.CreateDirectory(ticketFolder);
-                createdFolder = true;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return ArchiveResult.Failure($"创建单号文件夹失败：{ex.Message}");
-            }
-        }
-
-        var results = new List<ArchiveItemResult>();
-        string? cancellation = null;
-
-        foreach (var item in items)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                cancellation = "归档已取消。";
-                break;
-            }
-
-            results.Add(ArchiveItem(inbox, ticketFolder, item, conflictResolver, cancellationToken));
-        }
-
-        if (createdFolder)
-        {
-            RemoveIfEmpty(ticketFolder);
-        }
-
-        return new ArchiveResult(ticketFolder, results, cancellation);
-    }
-
     public static Task<ArchiveResult> ArchiveDroppedAsync(
         string targetRoot,
         string ticketNumber,

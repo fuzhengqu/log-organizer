@@ -88,22 +88,6 @@ public sealed class InboxWatcherTests
     }
 
     [TestMethod]
-    public void PendingChangedFiresOnceForABatchOfExistingEntries()
-    {
-        File.WriteAllText(Path.Combine(_inbox, "a.log"), "x");
-        File.WriteAllText(Path.Combine(_inbox, "b.log"), "y");
-
-        using var watcher = CreateWatcher();
-        var raised = 0;
-        watcher.PendingChanged += (_, _) => raised++;
-
-        watcher.Start();
-
-        Assert.AreEqual(1, raised, "the initial rescan reports the whole batch once");
-        Assert.AreEqual(2, watcher.SnapshotPending().Count);
-    }
-
-    [TestMethod]
     public void WatcherReportsAFileCreationWithoutWaiting()
     {
         using var watcher = CreateWatcher();

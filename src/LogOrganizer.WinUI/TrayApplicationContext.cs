@@ -229,12 +229,10 @@ internal sealed class TrayApplicationContext : IDisposable
 
     private void StartWatcher()
     {
-        _watcher?.Dispose();
-        _watcher = null;
+        InboxWatcher? previous = _watcher;
         try
         {
             var watcher = new InboxWatcher(_settings.InboxPath);
-            _watcher = watcher;
             watcher.PendingChanged += OnWatcherPendingChanged;
             watcher.Failed += (_, ex) => NotifyWatcherFailure(ex);
 
@@ -250,12 +248,19 @@ internal sealed class TrayApplicationContext : IDisposable
                 _primingWatcher = false;
             }
 
+            // Swap first, dispose second: tearing the old watcher down while the window is visible
+            // used to hide it, so saving settings with the panel open made the panel disappear.
+            _watcher = watcher;
             _lastPendingCount = watcher.SnapshotPending().Count;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             _watcher = null;
             _window?.ShowStatusMessage($"无法监控中转目录：{ex.Message}", isError: true);
+        }
+        finally
+        {
+            previous?.Dispose();
         }
     }
 

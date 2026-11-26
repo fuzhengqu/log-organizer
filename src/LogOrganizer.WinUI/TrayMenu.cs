@@ -96,7 +96,7 @@ internal sealed class TrayMenu : IDisposable
     /// Opens the menu at a screen position and runs the chosen item. Blocks until the menu closes,
     /// which is how Win32 menus work; the caller must already be on the UI thread.
     /// </summary>
-    public void Show(bool windowVisible, bool hasTarget, int x, int y)
+    public void Show(bool hasTarget, int x, int y)
     {
         if (_host == IntPtr.Zero)
         {
@@ -111,7 +111,7 @@ internal sealed class TrayMenu : IDisposable
 
         try
         {
-            AppendItem(menu, IdToggleWindow, windowVisible ? "隐藏归档窗口" : "显示归档窗口");
+            AppendItem(menu, IdToggleWindow, "显示 / 隐藏归档窗口");
             AppendItem(menu, IdSettings, "设置…");
             AppendItem(menu, IdOpenInbox, "打开中转目录");
             AppendItem(menu, IdOpenTarget, "打开目标目录", hasTarget);

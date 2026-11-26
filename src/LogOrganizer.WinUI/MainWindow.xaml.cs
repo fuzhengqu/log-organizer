@@ -20,7 +20,7 @@ public sealed partial class MainWindow : Window
 
     private readonly TrayApplicationContext _context;
     private bool _refreshing;
-    private bool _busy;
+    private bool _settingsOpen;
     private bool _shutdown;
     private System.Drawing.Icon? _trayIcon;
     private TrayMenu? _trayMenu;
@@ -53,7 +53,7 @@ public sealed partial class MainWindow : Window
         TitleBar.Loaded += OnLoaded;
         Closed += OnClosed;
         _context.PendingChanged += OnPendingChanged;
-        AlwaysOnTopButton.IsChecked = _context.IsPinned;
+        SyncPinState();
         RefreshPending();
         UpdateStatus();
     }
@@ -135,7 +135,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _trayMenu.Show(Visible, _context.HasTarget, point.X, point.Y);
+        _trayMenu.Show(_context.HasTarget, point.X, point.Y);
     }
 
     public void FocusTicketBox()
@@ -162,12 +162,7 @@ public sealed partial class MainWindow : Window
 
     /// <summary>Called when a new file lands in the inbox; the taskbar flash itself is native.</summary>
     public void ShowNewItemsNotice(int count) => DispatcherQueue.TryEnqueue(() =>
-    {
-        if (!_busy)
-        {
-            ShowStatus($"检测到 {count} 个新文件，输入单号后点击归档。", isError: false);
-        }
-    });
+        ShowStatus($"检测到 {count} 个新文件，输入单号后点击归档。", isError: false));
 
     public ConflictDecision DispatchConflictDialog(ConflictRequest request)
     {
@@ -392,7 +387,7 @@ public sealed partial class MainWindow : Window
 
     private void RefreshPendingCore()
     {
-        if (_refreshing || _busy)
+        if (_refreshing)
         {
             return;
         }
@@ -495,7 +490,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnArchive(object sender, RoutedEventArgs e)
     {
-        if (_busy || !TicketNumber.TryParse(TicketBox.Text.Trim(), out var ticket))
+        if (!TicketNumber.TryParse(TicketBox.Text.Trim(), out var ticket))
         {
             ShowStatus("问题单号只能包含 ASCII 数字，且不能为空。", isError: true);
             TicketBox.Focus(FocusState.Programmatic);
@@ -508,7 +503,6 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _busy = true;
         ArchiveButton.IsEnabled = false;
         SettingsButton.IsEnabled = false;
         StatusText.Text = "正在安全归档…";
@@ -569,7 +563,6 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            _busy = false;
             SettingsButton.IsEnabled = true;
             RefreshPendingCore();
         }
@@ -587,15 +580,33 @@ public sealed partial class MainWindow : Window
 
     private void OnAlwaysOnTopClick(object sender, RoutedEventArgs e)
     {
-        // The target state comes from the app, not from the toggle: one writer, no event ping-pong.
-        var pinned = !_context.IsPinned;
+        // Click fires before ToggleButton flips IsChecked, so reading the button here would give the
+        // previous value. The handler queues the work instead: by the time this runs, IsChecked holds
+        // the state the user just clicked, and the button stays the single source of truth.
+        DispatcherQueue.TryEnqueue(ApplyPinClick);
+    }
+
+    private void ApplyPinClick()
+    {
+        var pinned = AlwaysOnTopButton.IsChecked == true;
         _context.SetPinned(pinned);
-        AlwaysOnTopButton.IsChecked = pinned;
         ((OverlappedPresenter)AppWindow.Presenter).IsAlwaysOnTop = pinned;
         PendingSubtitle.Text = pinned ? "置顶模式 · 确认归档前不会移动文件" : "点击归档才会移动文件";
         ApplyPinnedOpacity();
         ReapplyPinHitTest();
         RefreshPendingCore();
+    }
+
+    /// <summary>
+    /// Pushes the app's pin state onto the opacity and the click region. The glyph follows through the
+    /// binding on IsChecked, so it is not touched here. Only for paths other than the button itself,
+    /// whose own click would race the toggle.
+    /// </summary>
+    private void SyncPinState()
+    {
+        AlwaysOnTopButton.IsChecked = _context.IsPinned;
+        ApplyPinnedOpacity();
+        ReapplyPinHitTest();
     }
 
     private void ApplyPinnedOpacity() => RootSurface.Opacity = _context.IsPinned
@@ -609,26 +620,34 @@ public sealed partial class MainWindow : Window
 
     private async Task OpenSettingsAsync()
     {
-        if (_busy)
+        // The settings window is modal for this process; a second copy would race on the same config.
+        if (_settingsOpen)
         {
             return;
         }
 
-        var settings = new SettingsWindow(_context.Settings.Clone(), this, _context.ProbeHotkey);
-        var updated = await settings.ShowAsync();
-        if (updated is null)
+        _settingsOpen = true;
+        try
         {
-            return;
-        }
+            var settings = new SettingsWindow(_context.Settings.Clone(), this, _context.ProbeHotkey);
+            var updated = await settings.ShowAsync();
+            if (updated is null)
+            {
+                return;
+            }
 
-        var hotkeyError = _context.ApplySettings(updated);
-        AlwaysOnTopButton.IsChecked = _context.IsPinned;
-        ApplyPinnedOpacity();
-        ApplyBackdrop();
-        RefreshPendingCore();
-        if (hotkeyError is not null)
+            var hotkeyError = _context.ApplySettings(updated);
+            SyncPinState();
+            ApplyBackdrop();
+            RefreshPendingCore();
+            if (hotkeyError is not null)
+            {
+                ShowStatus(hotkeyError, isError: true);
+            }
+        }
+        finally
         {
-            ShowStatus(hotkeyError, isError: true);
+            _settingsOpen = false;
         }
     }
 

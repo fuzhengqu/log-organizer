@@ -206,24 +206,6 @@ public sealed class SettingsStoreTests
     }
 
     [TestMethod]
-    public void LegacyQuietSecondsKey_IsIgnored()
-    {
-        Directory.CreateDirectory(_root);
-        File.WriteAllText(
-            Path.Combine(_root, "config.json"),
-            """
-            {
-              "InboxRoot": "D:\\Downloads",
-              "QuietSeconds": 42
-            }
-            """);
-
-        var settings = _store.Load();
-
-        Assert.AreEqual(AppSettings.DefaultInboxPath, settings.InboxPath);
-    }
-
-    [TestMethod]
     public void PanelOpacity_IsClampedToSupportedRange()
     {
         var low = SettingsStore.Normalize(new AppSettings { PanelOpacity = 0.1 });

@@ -66,8 +66,6 @@ public sealed record ArchiveResult(string? TicketFolder, IReadOnlyList<ArchiveIt
 
     public int SkippedCount => Items.Count(static item => item.Status == ArchiveItemStatus.Skipped);
 
-    public int FailedCount => Items.Count(static item => item.Status == ArchiveItemStatus.Failed);
-
     public static ArchiveResult Failure(string error) =>
         new(null, Array.Empty<ArchiveItemResult>(), error);
 }

@@ -4,16 +4,16 @@ namespace LogOrganizer.Core.Tests;
 public sealed class ArchiveServiceTests
 {
     private string _root = string.Empty;
-    private string _inbox = string.Empty;
+    private string _staging = string.Empty;
     private string _target = string.Empty;
 
     [TestInitialize]
     public void Setup()
     {
         _root = TestPaths.NewDirectory();
-        _inbox = Path.Combine(_root, "inbox");
+        _staging = Path.Combine(_root, "staging");
         _target = Path.Combine(_root, "target");
-        Directory.CreateDirectory(_inbox);
+        Directory.CreateDirectory(_staging);
         Directory.CreateDirectory(_target);
     }
 
@@ -47,20 +47,36 @@ public sealed class ArchiveServiceTests
         return process.HasExited && process.ExitCode == 0;
     }
 
-    private string AddInboxFile(string name, string content = "data")
+    private string AddStagingFile(string name, string content = "data")
     {
-        var path = Path.Combine(_inbox, name);
+        var path = Path.Combine(_staging, name);
         File.WriteAllText(path, content);
         return path;
     }
 
+    /// <summary>Archives a single pending item the way the window does: by explicit path and name.</summary>
+    private ArchiveResult ArchiveItem(string source, string ticket = "650239", ConflictResolver? resolver = null) =>
+        ArchiveService.ArchiveDropped(
+            _target,
+            ticket,
+            new[] { new ArchiveDropItem(source, Path.GetFileName(source)) },
+            resolver ?? AlwaysSkip);
+
     [TestMethod]
     public void Archive_CreatesTicketFolderAndMovesFiles()
     {
-        var first = AddInboxFile("1.jpg", "one");
-        var second = AddInboxFile("2.jpg", "two");
+        var first = AddStagingFile("1.jpg", "one");
+        var second = AddStagingFile("2.jpg", "two");
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { first, second }, AlwaysSkip);
+        var result = ArchiveService.ArchiveDropped(
+            _target,
+            "650239",
+            new[]
+            {
+                new ArchiveDropItem(first, "1.jpg"),
+                new ArchiveDropItem(second, "2.jpg"),
+            },
+            AlwaysSkip);
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.AreEqual(2, result.MovedCount);
@@ -78,9 +94,9 @@ public sealed class ArchiveServiceTests
         var existingFolder = Path.Combine(_target, "650239");
         Directory.CreateDirectory(existingFolder);
         File.WriteAllText(Path.Combine(existingFolder, "old.txt"), "old");
-        var source = AddInboxFile("new.txt", "new");
+        var source = AddStagingFile("new.txt", "new");
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { source }, AlwaysSkip);
+        var result = ArchiveItem(source);
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.IsTrue(File.Exists(Path.Combine(existingFolder, "old.txt")));
@@ -95,7 +111,7 @@ public sealed class ArchiveServiceTests
         Directory.CreateDirectory(existingNested);
         File.WriteAllText(Path.Combine(existingNested, "keep.txt"), "keep");
 
-        var incoming = Path.Combine(_inbox, "logs");
+        var incoming = Path.Combine(_staging, "logs");
         Directory.CreateDirectory(incoming);
         File.WriteAllText(Path.Combine(incoming, "extra.txt"), "extra");
 
@@ -106,7 +122,7 @@ public sealed class ArchiveServiceTests
             return ConflictDecision.Skip;
         };
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { incoming }, resolver);
+        var result = ArchiveItem(incoming, resolver: resolver);
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.IsTrue(File.Exists(Path.Combine(existingNested, "keep.txt")));
@@ -121,13 +137,13 @@ public sealed class ArchiveServiceTests
         var ticketFolder = Path.Combine(_target, "650239");
         Directory.CreateDirectory(ticketFolder);
         File.WriteAllText(Path.Combine(ticketFolder, "same.txt"), "existing");
-        var source = AddInboxFile("same.txt", "incoming");
+        var source = AddStagingFile("same.txt", "incoming");
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { source }, AlwaysSkip);
+        var result = ArchiveItem(source);
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.AreEqual(ArchiveItemStatus.Skipped, result.Items[0].Status);
-        Assert.IsTrue(File.Exists(source), "a skipped source must stay in the inbox");
+        Assert.IsTrue(File.Exists(source), "a skipped source must stay where it was");
         Assert.AreEqual("existing", File.ReadAllText(Path.Combine(ticketFolder, "same.txt")));
     }
 
@@ -137,9 +153,9 @@ public sealed class ArchiveServiceTests
         var ticketFolder = Path.Combine(_target, "650239");
         Directory.CreateDirectory(ticketFolder);
         File.WriteAllText(Path.Combine(ticketFolder, "same.txt"), "existing");
-        var source = AddInboxFile("same.txt", "incoming");
+        var source = AddStagingFile("same.txt", "incoming");
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { source }, _ => ConflictDecision.Overwrite);
+        var result = ArchiveItem(source, resolver: _ => ConflictDecision.Overwrite);
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.AreEqual(ArchiveItemStatus.Overwritten, result.Items[0].Status);
@@ -153,19 +169,9 @@ public sealed class ArchiveServiceTests
         var ticketFolder = Path.Combine(_target, "650239");
         Directory.CreateDirectory(ticketFolder);
         File.WriteAllText(Path.Combine(ticketFolder, "same.txt"), "existing");
-        var source = AddInboxFile("same.txt", "incoming");
+        var source = AddStagingFile("same.txt", "incoming");
 
-        ConflictDecision? decision = null;
-        var result = ArchiveService.Archive(
-            _inbox,
-            _target,
-            "650239",
-            new[] { source },
-            request =>
-            {
-                decision = ConflictDecision.Rename("same (2).txt");
-                return decision.Value;
-            });
+        var result = ArchiveItem(source, resolver: _ => ConflictDecision.Rename("same (2).txt"));
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.AreEqual(ArchiveItemStatus.Renamed, result.Items[0].Status);
@@ -181,19 +187,14 @@ public sealed class ArchiveServiceTests
         Directory.CreateDirectory(ticketFolder);
         File.WriteAllText(Path.Combine(ticketFolder, "same.txt"), "existing");
         File.WriteAllText(Path.Combine(ticketFolder, "same (2).txt"), "existing 2");
-        var source = AddInboxFile("same.txt", "incoming");
+        var source = AddStagingFile("same.txt", "incoming");
 
         string? suggestion = null;
-        ArchiveService.Archive(
-            _inbox,
-            _target,
-            "650239",
-            new[] { source },
-            request =>
-            {
-                suggestion = request.SuggestedName;
-                return ConflictDecision.Skip;
-            });
+        ArchiveItem(source, resolver: request =>
+        {
+            suggestion = request.SuggestedName;
+            return ConflictDecision.Skip;
+        });
 
         Assert.AreEqual("same (3).txt", suggestion);
     }
@@ -201,11 +202,11 @@ public sealed class ArchiveServiceTests
     [TestMethod]
     public void Archive_RejectsInvalidTicketNumbersWithoutTouchingTheInbox()
     {
-        var source = AddInboxFile("1.jpg");
+        var source = AddStagingFile("1.jpg");
 
         foreach (var ticket in new[] { "", "  ", "12a", "abc", "١٢٣", "1 2" })
         {
-            var result = ArchiveService.Archive(_inbox, _target, ticket, new[] { source }, AlwaysSkip);
+            var result = ArchiveItem(source, ticket);
 
             Assert.IsFalse(result.Succeeded);
             Assert.IsTrue(File.Exists(source), $"source must stay for ticket '{ticket}'");
@@ -290,7 +291,7 @@ public sealed class ArchiveServiceTests
             AlwaysSkip);
 
         Assert.AreEqual(0, result.MovedCount);
-        Assert.AreEqual(1, result.FailedCount);
+        Assert.AreEqual(1, result.Items.Count(static item => item.Status == ArchiveItemStatus.Failed));
         Assert.IsTrue(File.Exists(goodSource));
         Assert.IsTrue(File.Exists(invalidSource));
         Assert.AreEqual(0, Directory.GetFileSystemEntries(_target).Length);
@@ -334,60 +335,62 @@ public sealed class ArchiveServiceTests
     }
 
     [TestMethod]
-    public void Archive_RejectsUnsetOrMissingTarget()
+    public void ArchiveDropped_RejectsUnsetOrMissingTarget()
     {
-        var source = AddInboxFile("1.jpg");
+        var source = AddStagingFile("1.jpg");
 
-        var unset = ArchiveService.Archive(_inbox, string.Empty, "650239", new[] { source }, AlwaysSkip);
+        var unset = ArchiveService.ArchiveDropped(
+            string.Empty, "650239", new[] { new ArchiveDropItem(source, "1.jpg") }, AlwaysSkip);
         Assert.IsFalse(unset.Succeeded);
 
-        var missing = ArchiveService.Archive(_inbox, Path.Combine(_root, "nope"), "650239", new[] { source }, AlwaysSkip);
+        var missing = ArchiveService.ArchiveDropped(
+            Path.Combine(_root, "nope"), "650239", new[] { new ArchiveDropItem(source, "1.jpg") }, AlwaysSkip);
         Assert.IsFalse(missing.Succeeded);
 
         Assert.IsTrue(File.Exists(source));
     }
 
     [TestMethod]
-    public void Archive_ReportsItemsOutsideTheInbox()
+    public void ArchiveDropped_RejectsAMissingSource()
     {
-        var outside = Path.Combine(_root, "outside.txt");
-        File.WriteAllText(outside, "x");
+        var missing = Path.Combine(_root, "gone.txt");
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { outside }, AlwaysSkip);
+        var result = ArchiveService.ArchiveDropped(
+            _target, "650239", new[] { new ArchiveDropItem(missing, "gone.txt") }, AlwaysSkip);
 
         Assert.AreEqual(1, result.Items.Count);
         Assert.AreEqual(ArchiveItemStatus.Failed, result.Items[0].Status);
-        Assert.IsTrue(File.Exists(outside));
+        Assert.IsFalse(File.Exists(missing));
     }
 
     [TestMethod]
-    public void Archive_KeepsTheSourceWhenTheTransferFails()
+    public void ArchiveDropped_KeepsTheSourceWhenTheTransferFails()
     {
-        var source = AddInboxFile("locked.txt", "locked");
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { source }, AlwaysSkip, CancellationToken.None);
+        var source = AddStagingFile("locked.txt", "locked");
+        var result = ArchiveItem(source);
         Assert.IsTrue(result.Succeeded, result.Error);
 
-        // Move it back to the inbox behind a lock so the transfer fails again.
-        var restored = Path.Combine(_inbox, "locked2.txt");
+        // Move it back out behind a lock so the transfer fails on the second attempt.
+        var restored = Path.Combine(_root, "locked2.txt");
         File.Move(Path.Combine(_target, "650239", "locked.txt"), restored);
 
         using (new FileStream(restored, FileMode.Open, FileAccess.Read, FileShare.None))
         {
-            var failing = ArchiveService.Archive(_inbox, _target, "650239", new[] { restored }, AlwaysSkip);
+            var failing = ArchiveItem(restored, "650239");
 
             Assert.AreEqual(ArchiveItemStatus.Failed, failing.Items[0].Status);
-            Assert.IsTrue(File.Exists(restored), "a failed transfer must keep the source in the inbox");
+            Assert.IsTrue(File.Exists(restored), "a failed transfer must keep the source in place");
         }
     }
 
     [TestMethod]
-    public void Archive_RefusesToFollowALinkInsideAFolderBeingMerged()
+    public void ArchiveDropped_RefusesToFollowALinkInsideAFolderBeingMerged()
     {
         var outside = Path.Combine(_root, "outside");
         Directory.CreateDirectory(outside);
         File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
 
-        var folder = Path.Combine(_inbox, "bundle");
+        var folder = Path.Combine(_root, "bundle");
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, "keep.txt"), "keep");
 
@@ -403,7 +406,7 @@ public sealed class ArchiveServiceTests
         var ticket = Path.Combine(_target, "650239");
         Directory.CreateDirectory(Path.Combine(ticket, "bundle"));
 
-        var result = ArchiveService.Archive(_inbox, _target, "650239", new[] { folder }, AlwaysSkip);
+        var result = ArchiveItem(folder);
 
         Assert.AreEqual(ArchiveItemStatus.Failed, result.Items[0].Status);
         Assert.IsTrue(result.Items[0].Error!.Contains("符号链接", StringComparison.Ordinal), result.Items[0].Error);
@@ -412,16 +415,16 @@ public sealed class ArchiveServiceTests
     }
 
     [TestMethod]
-    public void Archive_RemovesTheTicketFolderWhenNothingWasStored()
+    public void ArchiveDropped_RemovesTheTicketFolderWhenNothingWasStored()
     {
-        var first = AddInboxFile("a.txt");
-        AddInboxFile("b.txt");
+        var first = AddStagingFile("a.txt");
 
         // Archive one item, then remove it from the folder so the next archive finds an empty target.
-        ArchiveService.Archive(_inbox, _target, "777", new[] { first }, AlwaysSkip);
+        ArchiveItem(first, "777");
         Directory.Delete(Path.Combine(_target, "777"), true);
 
-        var result = ArchiveService.Archive(_inbox, _target, "888", Array.Empty<string>(), AlwaysSkip);
+        var result = ArchiveService.ArchiveDropped(
+            _target, "888", Array.Empty<ArchiveDropItem>(), AlwaysSkip);
 
         Assert.IsTrue(result.Succeeded, result.Error);
         Assert.IsFalse(Directory.Exists(Path.Combine(_target, "888")), "an empty ticket folder is not kept");
