@@ -48,7 +48,7 @@ dotnet list LogOrganizer.sln package --include-transitive --vulnerable
 - 位置：`ArchiveService.CopyDirectory`（跨卷复制）与 `Transfer`（合并目录时的递归入口）。
 - 问题：合并或跨卷复制一个**内含联接点**的文件夹时，`Directory.EnumerateFiles(..., AllDirectories)` 会进入联接点指向的目录，可能把中转目录之外的内容复制进归档目录；如果联接点指向自身祖先，还会造成无限递归。
 - 修复：`CopyDirectory` 改为逐层手工递归，遇到目录级重解析点直接抛错停止；`Transfer` 在每次递归开始时拒绝目录级重解析点。文件级重解析点（OneDrive 等云端占位文件）仍然允许，避免阻塞正常归档。
-- 验证：新增单元测试 `Archive_RefusesToFollowALinkInsideAFolderBeingMerged`，用 `mklink /J` 建立真实联接点，断言该项失败、联接点后的内容未被复制、外部目录未被修改。测试总数 62，全绿。
+- 验证：新增单元测试 `ArchiveDropped_RefusesToFollowALinkInsideAFolderBeingMerged`，用 `mklink /J` 建立真实联接点，断言该项失败、联接点后的内容未被复制、外部目录未被修改。
 
 ### 已确认无问题（含理由）
 

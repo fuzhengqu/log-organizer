@@ -2,10 +2,10 @@
 
   <!-- Single source of truth for the shipped version. Bump by 0.01 per change: 0.04 -> 0.05 -> 0.06. -->
   <PropertyGroup>
-    <Version>0.04</Version>
-    <InformationalVersion>0.04</InformationalVersion>
+    <Version>0.05</Version>
+    <InformationalVersion>0.05</InformationalVersion>
     <AssemblyVersion>0.3.0.0</AssemblyVersion>
-    <FileVersion>0.04.0.0</FileVersion>
+    <FileVersion>0.05.0.0</FileVersion>
     <Product>日志归档助手</Product>
     <AssemblyTitle>日志归档助手</AssemblyTitle>
     <Company>fuzhengqu</Company>
