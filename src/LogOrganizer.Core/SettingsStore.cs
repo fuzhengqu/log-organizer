@@ -52,6 +52,7 @@ public sealed class SettingsStore
             if (node is JsonObject root)
             {
                 MigrateLegacyBackdrop(root);
+                MigrateLegacyPanelPinned(root);
             }
 
             var loaded = node?.Deserialize<AppSettings>(Options);
@@ -114,6 +115,31 @@ public sealed class SettingsStore
         root[nameof(AppSettings.Backdrop)] = useMica
             ? nameof(BackdropMode.Mica)
             : nameof(BackdropMode.Solid);
+    }
+
+    /// <summary>
+    /// Up to 0.05 a single <c>PanelPinned</c> flag meant both "pinned right now" and "pin on launch",
+    /// and it was written to disk every time the title-bar pin was clicked. It now splits into a live
+    /// value that is never saved and a saved <see cref="AppSettings.StartPinned"/> preference, so the
+    /// stored flag is carried over as the launch preference: whatever the user last chose at startup is
+    /// what they get next time, and later clicks on the pin no longer rewrite it.
+    /// </summary>
+    private static void MigrateLegacyPanelPinned(JsonObject root)
+    {
+        if (root.ContainsKey(nameof(AppSettings.StartPinned)))
+        {
+            return;
+        }
+
+        if (!root.TryGetPropertyValue(nameof(AppSettings.PanelPinned), out var legacy) || legacy is null)
+        {
+            return;
+        }
+
+        if (legacy.GetValueKind() == JsonValueKind.True)
+        {
+            root[nameof(AppSettings.StartPinned)] = true;
+        }
     }
 
     public void Save(AppSettings settings)

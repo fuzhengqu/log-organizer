@@ -29,6 +29,11 @@ internal sealed class TrayApplicationContext : IDisposable
     {
         _app = app;
         _settings = _store.Load();
+
+        // PanelPinned is live state that is never persisted, so every launch starts from the saved
+        // preference. From here on the title-bar pin owns it and the preference is left alone.
+        _settings.PanelPinned = _settings.StartPinned;
+
         var queue = DispatcherQueue.GetForCurrentThread();
 
         // Dragging a window edge raises DidSizeChange dozens of times a second; write once it settles.
@@ -91,6 +96,10 @@ internal sealed class TrayApplicationContext : IDisposable
         return await ArchiveService.ArchiveDroppedAsync(_settings.TargetRoot, ticket, drops, ResolveConflict);
     }
 
+    /// <summary>
+    /// Records the live pin state. Deliberately does not save settings: the preference for the next
+    /// launch is "启动时置顶" and is owned by the settings window, so pinning here must not rewrite it.
+    /// </summary>
     public void SetPinned(bool pinned)
     {
         if (_settings.PanelPinned == pinned)
@@ -99,7 +108,6 @@ internal sealed class TrayApplicationContext : IDisposable
         }
 
         _settings.PanelPinned = pinned;
-        SaveSettings();
         _window?.RefreshPending();
     }
 

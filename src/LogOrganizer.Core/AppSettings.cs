@@ -35,8 +35,17 @@ public sealed class AppSettings
     /// <summary>Shortcut text in canonical form, e.g. "Ctrl+Shift+L".</summary>
     public string WakeHotkey { get; set; } = HotkeyGesture.DefaultText;
 
-    /// <summary>Shows the manual drop panel in topmost mode; disabled by default.</summary>
+    /// <summary>
+    /// Whether the panel is topmost right now. This is live state, not a preference: the title-bar pin
+    /// writes it, it is not persisted, and every launch re-reads <see cref="StartPinned"/>. Keeping it
+    /// separate from <see cref="StartPinned"/> is what lets the user pin at launch and still unpin with
+    /// the button without the two settings overwriting each other.
+    /// </summary>
+    [JsonIgnore]
     public bool PanelPinned { get; set; }
+
+    /// <summary>Opens the panel topmost on launch; disabled by default.</summary>
+    public bool StartPinned { get; set; }
 
     /// <summary>Window background material: solid fill, Mica or Acrylic.</summary>
     public BackdropMode Backdrop { get; set; } = BackdropMode.Mica;
@@ -71,6 +80,7 @@ public sealed class AppSettings
         WakeHotkeyEnabled = WakeHotkeyEnabled,
         WakeHotkey = WakeHotkey,
         PanelPinned = PanelPinned,
+        StartPinned = StartPinned,
         Backdrop = Backdrop,
         PanelOpacity = PanelOpacity,
         PanelLeft = PanelLeft,

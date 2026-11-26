@@ -3,8 +3,8 @@ using Microsoft.UI.Xaml.Data;
 namespace LogOrganizer.WinUI;
 
 /// <summary>
-/// Maps a toggle's checked state onto the pin glyph's rotation. The pin is drawn diagonal and turns
-/// upright to read as "pinned in".
+/// Maps a toggle's checked state onto the pin glyph's rotation. Segoe draws the pin diagonally, and
+/// Windows stands it upright for a pinned window, so the checked state is the one that rotates.
 /// </summary>
 /// <remarks>
 /// The angle is bound rather than assigned from a visual state on purpose. A <c>VisualState</c>
@@ -14,8 +14,10 @@ namespace LogOrganizer.WinUI;
 /// </remarks>
 public sealed partial class PinAngleConverter : IValueConverter
 {
-    private const double UnpinnedAngle = -45;
-    private const double PinnedAngle = 0;
+    // Segoe's pin glyph is drawn diagonally at 0°. Rotating it -45° stands it upright, which is the
+    // look Windows gives a pinned window, so the checked state gets the rotation.
+    private const double UnpinnedAngle = 0;
+    private const double PinnedAngle = -45;
 
     public object Convert(object value, Type targetType, object parameter, string language) =>
         value is true ? PinnedAngle : UnpinnedAngle;

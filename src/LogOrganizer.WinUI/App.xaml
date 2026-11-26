@@ -105,9 +105,9 @@
                                           RenderTransformOrigin="0.5,0.5"
                                           HorizontalAlignment="Center" VerticalAlignment="Center">
                                   <!--
-                                      Every Windows pin button shows Segoe's upright glyph diagonal when
-                                      unpinned; the angle follows IsChecked through the converter so the
-                                      glyph and the real pin state can never disagree.
+                                      Segoe draws the pin diagonally; Windows stands it upright for a
+                                      pinned window. The angle follows IsChecked through the converter
+                                      so the glyph and the real pin state can never disagree.
                                   -->
                                   <FontIcon.RenderTransform>
                                       <RotateTransform Angle="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource PinAngleConverter}}" />

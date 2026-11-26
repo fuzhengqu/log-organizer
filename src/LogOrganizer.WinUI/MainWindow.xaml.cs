@@ -400,9 +400,6 @@ public sealed partial class MainWindow : Window
             ItemsList.ItemsSource = items;
             EmptyState.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             PendingTitle.Text = $"待归档项目 · {items.Count}";
-            PendingSubtitle.Text = _context.IsPinned
-                ? "置顶模式 · 确认归档前不会移动文件"
-                : "点击归档才会移动文件";
             ArchiveButton.IsEnabled = items.Count > 0 && TicketNumber.TryParse(TicketBox.Text.Trim(), out _)
                 && _context.HasTarget;
             UpdateStatus();
@@ -591,7 +588,6 @@ public sealed partial class MainWindow : Window
         var pinned = AlwaysOnTopButton.IsChecked == true;
         _context.SetPinned(pinned);
         ((OverlappedPresenter)AppWindow.Presenter).IsAlwaysOnTop = pinned;
-        PendingSubtitle.Text = pinned ? "置顶模式 · 确认归档前不会移动文件" : "点击归档才会移动文件";
         ApplyPinnedOpacity();
         ReapplyPinHitTest();
         RefreshPendingCore();
@@ -659,9 +655,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            StatusText.Text = _context.IsPinned
-                ? "置顶待命 · 文件只会在点击归档后移动"
-                : "监控中 · 有新文件时任务栏图标会闪烁";
+            StatusText.Text = "监控中 · 有新文件时任务栏图标会闪烁";
             StatusText.Foreground = (Brush)Application.Current.Resources["AppMutedBrush"];
         }
 

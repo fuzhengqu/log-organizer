@@ -61,7 +61,7 @@ public sealed partial class SettingsWindow : Window
         TargetBox.Text = current.TargetRoot ?? string.Empty;
         StartupBox.IsChecked = current.StartWithWindows;
         HotkeyBox.IsChecked = current.WakeHotkeyEnabled;
-        PinnedBox.IsChecked = current.PanelPinned;
+        PinnedBox.IsChecked = current.StartPinned;
         OpacitySlider.Value = Math.Round(current.PanelOpacity * 100);
         BackdropBox.SelectedIndex = Math.Max(0, Array.IndexOf(BackdropOrder, current.Backdrop));
         VersionText.Text = $"版本 {AppVersion.Display}";
@@ -368,7 +368,8 @@ public sealed partial class SettingsWindow : Window
             StartWithWindows = StartupBox.IsChecked == true,
             WakeHotkeyEnabled = hotkeyEnabled,
             WakeHotkey = _hotkey.ToString(),
-            PanelPinned = PinnedBox.IsChecked == true,
+            PanelPinned = _current.PanelPinned,
+            StartPinned = PinnedBox.IsChecked == true,
             Backdrop = SelectedBackdrop(),
             PanelOpacity = OpacitySlider.Value / 100.0,
             PanelLeft = _current.PanelLeft,

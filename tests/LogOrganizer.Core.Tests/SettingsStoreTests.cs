@@ -28,6 +28,7 @@ public sealed class SettingsStoreTests
         Assert.IsFalse(settings.StartWithWindows);
         Assert.IsFalse(settings.WakeHotkeyEnabled);
         Assert.AreEqual(HotkeyGesture.DefaultText, settings.WakeHotkey);
+        Assert.IsFalse(settings.StartPinned);
         Assert.IsFalse(settings.PanelPinned);
         Assert.AreEqual(BackdropMode.Mica, settings.Backdrop);
         Assert.AreEqual(AppSettings.DefaultPanelOpacity, settings.PanelOpacity);
@@ -49,7 +50,7 @@ public sealed class SettingsStoreTests
             StartWithWindows = true,
             WakeHotkeyEnabled = true,
             WakeHotkey = "Ctrl+Alt+K",
-            PanelPinned = true,
+            StartPinned = true,
             Backdrop = BackdropMode.Acrylic,
             PanelOpacity = 0.65,
             PanelLeft = 123,
@@ -67,13 +68,51 @@ public sealed class SettingsStoreTests
         Assert.IsTrue(loaded.StartWithWindows);
         Assert.IsTrue(loaded.WakeHotkeyEnabled);
         Assert.AreEqual("Ctrl+Alt+K", loaded.WakeHotkey);
-        Assert.IsTrue(loaded.PanelPinned);
+        Assert.IsTrue(loaded.StartPinned);
         Assert.AreEqual(BackdropMode.Acrylic, loaded.Backdrop);
         Assert.AreEqual(0.65, loaded.PanelOpacity, 0.0001);
         Assert.AreEqual(123, loaded.PanelLeft);
         Assert.AreEqual(456, loaded.PanelTop);
         Assert.AreEqual(900, loaded.PanelWidth);
         Assert.AreEqual(760, loaded.PanelHeight);
+    }
+
+    /// <summary>
+    /// The title-bar pin writes <see cref="AppSettings.PanelPinned"/> constantly, but that is live
+    /// state: saving it would resurrect the 0.05 bug where pinning silently toggled the "启动时置顶"
+    /// preference in the settings window.
+    /// </summary>
+    [TestMethod]
+    public void PanelPinned_IsNotPersisted()
+    {
+        _store.Save(new AppSettings { StartPinned = false, PanelPinned = true });
+
+        var loaded = _store.Load();
+
+        Assert.IsFalse(loaded.StartPinned, "the launch preference must not be rewritten by the live pin state");
+        Assert.IsFalse(File.ReadAllText(_store.FilePath).Contains(nameof(AppSettings.PanelPinned)));
+    }
+
+    /// <summary>
+    /// Up to 0.05 the persisted <c>PanelPinned</c> flag was the only pin setting, so an upgraded
+    /// config must carry it over as the launch preference rather than dropping the user's choice.
+    /// </summary>
+    [TestMethod]
+    public void LegacyPanelPinned_LoadsAsStartPinned()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(
+            Path.Combine(_root, "config.json"),
+            """
+            {
+              "InboxRoot": "E:\\Inbox",
+              "PanelPinned": true
+            }
+            """);
+
+        var settings = _store.Load();
+
+        Assert.IsTrue(settings.StartPinned);
     }
 
     /// <summary>
