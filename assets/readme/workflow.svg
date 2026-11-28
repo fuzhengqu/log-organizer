@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360"
+     role="img" aria-labelledby="wfTitle wfDesc">
+  <title id="wfTitle">归档流程</title>
+  <desc id="wfDesc">Three steps: files land in the inbox folder and appear in the pending list with a taskbar flash; the user types a digits-only ticket number; clicking Archive moves the files into a per-ticket folder, and only a fully successful move removes the source.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#C7C7CE"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="360" rx="26" fill="#FCFCFD"/>
+  <rect x="0.5" y="0.5" width="1199" height="359" rx="25.5" fill="none" stroke="#E7E7EA"/>
+
+  <text x="64" y="56" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+        font-size="26" font-weight="700" fill="#1B1B1F">移动文件只发生在一次明确点击之后</text>
+  <text x="64" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+        font-size="18" fill="#8A8A93">存进中转目录 → 填纯数字单号 → 点「归档」；三步之前，源文件不动</text>
+
+  <!-- Step 1 -->
+  <g id="step-1" transform="translate(64 130)">
+    <circle cx="22" cy="22" r="20" fill="#F1E3D8"/>
+    <text x="22" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="20" font-weight="700" fill="#B85C24">1</text>
+    <text x="58" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="20" font-weight="600" fill="#1B1B1F">存进中转目录</text>
+    <g transform="translate(0 72)">
+      <rect x="0" y="0" width="300" height="112" rx="12" fill="#FFFFFF" stroke="#E7E7EA"/>
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="15" fill="#2C2C33">
+        <rect x="16" y="18" width="268" height="26" rx="6" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="28" y="36">install-2026-11-24.log</text>
+        <rect x="16" y="52" width="268" height="26" rx="6" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="28" y="70">screenshot-2026-11-25.png</text>
+        <circle cx="272" cy="31" r="4" fill="#B85C24"/>
+        <text x="28" y="98" font-size="14" fill="#8A8A93">任务栏图标闪一下，窗口不会自动弹出</text>
+      </g>
+    </g>
+  </g>
+
+  <path d="M376 186 L436 186" stroke="#C7C7CE" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 2 -->
+  <g id="step-2" transform="translate(448 130)">
+    <circle cx="22" cy="22" r="20" fill="#F1E3D8"/>
+    <text x="22" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="20" font-weight="700" fill="#B85C24">2</text>
+    <text x="58" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="20" font-weight="600" fill="#1B1B1F">填纯数字单号</text>
+    <g transform="translate(0 72)">
+      <rect x="0" y="0" width="300" height="112" rx="12" fill="#FFFFFF" stroke="#E7E7EA"/>
+      <text x="16" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+            font-size="15" fill="#8A8A93">问题单号</text>
+      <rect x="16" y="52" width="268" height="34" rx="8" fill="#FFFFFF" stroke="#B85C24" stroke-width="2"/>
+      <text x="28" y="75" font-family="ui-monospace, monospace" font-size="17" fill="#2C2C33">18718743480</text>
+      <rect x="29" y="59" width="2" height="20" fill="#B85C24"/>
+      <text x="16" y="104" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+            font-size="14" fill="#8A8A93">只接受 ASCII 数字，空或含符号都会被拒绝</text>
+    </g>
+  </g>
+
+  <path d="M760 186 L820 186" stroke="#C7C7CE" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 3 -->
+  <g id="step-3" transform="translate(832 130)">
+    <circle cx="22" cy="22" r="20" fill="#F1E3D8"/>
+    <text x="22" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="20" font-weight="700" fill="#B85C24">3</text>
+    <text x="58" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="20" font-weight="600" fill="#1B1B1F">点「归档」才移动</text>
+    <g transform="translate(0 72)">
+      <rect x="0" y="0" width="300" height="112" rx="12" fill="#FFFFFF" stroke="#E7E7EA"/>
+      <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="15" fill="#2C2C33">
+        <rect x="16" y="16" width="268" height="30" rx="8" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="28" y="36" font-family="ui-monospace, monospace" font-size="15" fill="#6B6B74">…\Archive\18718743480\</text>
+        <rect x="16" y="54" width="130" height="26" rx="6" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="28" y="72" font-size="14">install…log</text>
+        <rect x="154" y="54" width="130" height="26" rx="6" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="166" y="72" font-size="14">screenshot….png</text>
+        <text x="16" y="100" font-size="14" fill="#8A8A93">全部成功后才删除源文件；失败则保留并说明原因</text>
+      </g>
+    </g>
+  </g>
+
+  <text x="64" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+        font-size="16" fill="#8A8A93">遇到同名文件逐项选择覆盖 / 重命名 / 跳过，默认是「跳过」——不会静默覆盖。</text>
+</svg>

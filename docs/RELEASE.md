@@ -58,8 +58,8 @@ git push origin v0.06
 1. 用演示目录 `D:\Demo\_收件`（中转）与 `D:\Demo\Archive`（目标），不要出现真实工作路径。
 2. 100% 缩放、浅色主题、单显示器；截图前最小化其它窗口，避免把别的应用内容拍进 Mica 背景。
 3. 置顶按钮必须紧贴最小化按钮左侧、无间隙。
-4. 保存到 `docs/screenshots/`：`main-mica.png`、`settings-mica.png`、`main-solid.png`。
-5. 裁剪到 DWM 的可见边框（`DWMWA_EXTENDED_FRAME_BOUNDS`），不要带窗口阴影。
+4. README 使用的界面截图放在 `assets/readme/source/`（`app-main-pinned.png`、`app-settings.png`），由它们合成 `assets/readme/proof-board.webp`；数量或布局变化时同步重拍并重新合成。
+5. 裁剪到 DWM 的可见边框（`DWMWA_EXTENDED_FRAME_BOUNDS`），不要带窗口阴影；`PrintWindow` 会在左右和底部留下 8px 黑边，需裁掉。
 
 ## 五、发布前检查
 
@@ -68,6 +68,7 @@ git push origin v0.06
 - [ ] 单元测试全绿（当前 63 个）。
 - [ ] `dotnet list LogOrganizer.sln package --include-transitive --vulnerable` 无输出告警。
 - [ ] 仓库里没有本机路径、个人邮箱、企业信息（见 `docs/security-audit.md`）。
+- [ ] README 视觉素材与版本一致：`assets/readme/proof-board.webp` 里的窗口页脚显示的版本号等于本次版本；`hero.svg` 的版本徽章与元信息同步。
 - [ ] 两个 zip 解压后都能看到 `LogOrganizer.exe`、`VC_redist.*.exe`、`使用说明.txt`。
 - [ ] `SHA256SUMS.txt` 与附件实际哈希一致（`certutil -hashfile <文件> SHA256`）。
 - [ ] Release 说明写清：x64 已实机验证 / ARM64 待实机验证、需要 VC++ 运行库、未签名会触发 SmartScreen。

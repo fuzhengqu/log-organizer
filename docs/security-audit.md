@@ -72,7 +72,7 @@ dotnet list LogOrganizer.sln package --include-transitive --vulnerable
 
 ## 四、仓库内容清点
 
-入库：源码、测试、文档、许可证、截图（`docs/screenshots/*.png`）、`build.ps1`、`tools/make-release.ps1`、`.github/workflows/*.yml`。
+入库：源码、测试、文档、许可证、README 视觉素材（`assets/readme/`，含 `source/` 下的界面截图与 `proof-board.webp`）、`build.ps1`、`tools/make-release.ps1`、`.github/workflows/*.yml`。
 
 不入库（`.gitignore`）：`bin/`、`obj/`、`publish*/`、`artifacts/`（含 VC++ 运行库缓存与打包产物）、`.vs/`、`TestResults/`、`_test-temp/`、`.planning/`、`.superpowers/`。
 

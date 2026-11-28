@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="380" viewBox="0 0 1200 380"
+     role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">日志归档助手 log-organizer</title>
+  <desc id="heroDesc">Windows tray tool that archives downloads and screenshots into per-ticket folders; the value line reads "save to the inbox, type a ticket number, and only clicking Archive moves the file".</desc>
+
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D2691E"/>
+      <stop offset="1" stop-color="#B85C24"/>
+    </linearGradient>
+    <clipPath id="iconClip">
+      <rect x="0" y="0" width="72" height="72" rx="16"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background: solid so the asset reads the same on GitHub light and dark themes. -->
+  <rect width="1200" height="380" rx="26" fill="#FCFCFD"/>
+  <rect x="0.5" y="0.5" width="1199" height="379" rx="25.5" fill="none" stroke="#E7E7EA"/>
+
+  <!-- Title block -->
+  <g id="title-block" transform="translate(64 60)">
+    <!-- App mark, drawn from the same shape the program's icon uses: an accent tile with a
+         downward arrow into a tray line. -->
+    <g transform="translate(0 0)">
+      <rect width="72" height="72" rx="16" fill="url(#accent)"/>
+      <g clip-path="url(#iconClip)">
+        <path d="M36 16 L36 40" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+        <path d="M25 31 L36 42 L47 31" fill="none" stroke="#FFFFFF" stroke-width="6"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 50 L52 50" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+      </g>
+    </g>
+    <text x="92" y="34" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="44" font-weight="700" fill="#1B1B1F">日志归档助手</text>
+    <text x="92" y="64" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="20" fill="#8A8A93">log-organizer</text>
+
+    <text x="0" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="26" fill="#3A3A42">保存到中转目录 → 输入单号 → 点「归档」才移动文件</text>
+    <text x="0" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="20" fill="#8A8A93">常驻 Windows 托盘 · 完全离线 · 无遥测 · 无自动更新</text>
+  </g>
+
+  <!-- Metadata strip -->
+  <g id="metadata" transform="translate(64 300)"
+     font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19" fill="#6B6B74">
+    <text x="0" y="0">v0.06</text>
+    <text x="96" y="0">·</text>
+    <text x="116" y="0">GPL-3.0-only</text>
+    <text x="292" y="0">·</text>
+    <text x="312" y="0">Win 10 1809+ / 11</text>
+    <text x="492" y="0">·</text>
+    <text x="512" y="0">x64 &amp; arm64</text>
+  </g>
+
+  <!-- Proof panel: a stylised but faithful echo of the app's pending-file list. -->
+  <g id="proof-panel" transform="translate(712 46)">
+    <rect x="0" y="0" width="424" height="288" rx="18" fill="#FFFFFF" stroke="#E7E7EA"/>
+
+    <!-- title bar -->
+    <rect x="0" y="0" width="424" height="56" rx="18" fill="#F4F4F6"/>
+    <rect x="0" y="38" width="424" height="18" fill="#F4F4F6"/>
+    <circle cx="26" cy="28" r="9" fill="url(#accent)"/>
+    <path d="M26 23 L26 31 M21 27 L26 32 L31 27" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="44" y="33" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="18" font-weight="600" fill="#1B1B1F">日志归档助手</text>
+    <!-- pin glyph, upright (pinned) -->
+    <g transform="translate(384 22)">
+      <path d="M0 -7 L0 3 M-3 -1 L0 -7 L3 -1 M-4 3 L4 3 M0 3 L0 8"
+            fill="none" stroke="#B85C24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <text x="20" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+          font-size="17" font-weight="600" fill="#1B1B1F">待归档项目 · 5</text>
+
+    <!-- file rows -->
+    <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+      <g transform="translate(20 104)">
+        <rect width="384" height="30" rx="8" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="12" y="20" font-size="14" fill="#2C2C33">install-2026-11-24.log</text>
+        <rect x="360" y="6" width="14" height="18" rx="3" fill="none" stroke="#C7C7CE"/>
+      </g>
+      <g transform="translate(20 140)">
+        <rect width="384" height="30" rx="8" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="12" y="20" font-size="14" fill="#2C2C33">crashdump-app01.txt</text>
+        <rect x="360" y="6" width="14" height="18" rx="3" fill="none" stroke="#C7C7CE"/>
+      </g>
+      <g transform="translate(20 176)">
+        <rect width="384" height="30" rx="8" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="12" y="20" font-size="14" fill="#2C2C33">screenshot-2026-11-25.png</text>
+        <rect x="360" y="6" width="14" height="18" rx="3" fill="none" stroke="#C7C7CE"/>
+      </g>
+      <g transform="translate(20 212)">
+        <rect width="384" height="30" rx="8" fill="#FAFAFB" stroke="#ECECEF"/>
+        <text x="12" y="20" font-size="14" fill="#2C2C33">release-0.06-notes.txt</text>
+        <rect x="360" y="6" width="14" height="18" rx="3" fill="none" stroke="#C7C7CE"/>
+      </g>
+    </g>
+
+    <!-- ticket field, focused -->
+    <g transform="translate(20 252)">
+      <rect width="384" height="30" rx="8" fill="#FFFFFF" stroke="#B85C24" stroke-width="2"/>
+      <text x="12" y="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#2C2C33">18718743480</text>
+      <rect x="13" y="6" width="2" height="18" fill="#B85C24"/>
+    </g>
+  </g>
+</svg>
