@@ -56,9 +56,9 @@
 | `dotnet build LogOrganizer.sln -c Release -p:Platform=x64` | 退出码 0，0 警告 0 错误 |
 | `LogOrganizer.Core.Tests`（Microsoft.Testing.Platform 直接运行） | 61 个测试全部通过 |
 | `build.ps1` 默认发布 | `publish/LogOrganizer.exe`，87,013,122 字节，SHA-256 `0669F901325C6D3C0609CAA0F5A3EB9664409C3B28BCF32150285A6D4198EDEB`，目录内仅此一个文件 |
-| 自包含产物启动 | UIA 读到完整窗口与控件；`docs/screenshots/main-mica.png` |
-| Mica 生效 | 同一窗口同一区域采样：Mica 模式均值 RGB(239,244,249)（随壁纸变化），纯色模式恒为 RGB(248,245,239)；对比见 `docs/screenshots/main-solid.png` |
-| 设置窗口 | Mica 正常，背景下拉为 Mica / 亚克力 / 纯色；`docs/screenshots/settings-mica.png` |
+| 自包含产物启动 | UIA 读到完整窗口与控件；当时的截图 `docs/screenshots/main-mica.png`（该目录已随 `assets/readme/` 上线移除） |
+| Mica 生效 | 同一窗口同一区域采样：Mica 模式均值 RGB(239,244,249)（随壁纸变化），纯色模式恒为 RGB(248,245,239)；对比见当时的 `docs/screenshots/main-solid.png`（已移除） |
+| 设置窗口 | Mica 正常，背景下拉为 Mica / 亚克力 / 纯色；当时的 `docs/screenshots/settings-mica.png`（已移除） |
 | 旧配置迁移 | 真实旧文件 `UseMicaBackdrop: true` 启动后落盘为 `"Backdrop": "Mica"`；`false` 迁移为 `Solid` |
 | 框架依赖发布 | `build.ps1 -FrameworkDependent` 输出 52 个文件、38.6 MB，可正常启动 |
 | `git diff --check` | 通过（仅 CRLF 提示） |
